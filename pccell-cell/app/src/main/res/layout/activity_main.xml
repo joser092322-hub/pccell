@@ -1,0 +1,379 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0B0F19"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <!-- Top Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingBottom="10dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="PCcell Mobile"
+            android:textColor="#F8FAFC"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/statusTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_button_secondary"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:text="○ Desconectado"
+            android:textColor="#F59E0B"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- Card de Conexão -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_card"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/ipEditText"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_input"
+                android:hint="IP do PC (ex: 192.168.0.10)"
+                android:inputType="text"
+                android:paddingHorizontal="12dp"
+                android:singleLine="true"
+                android:textColor="#F8FAFC"
+                android:textColorHint="#64748B"
+                android:textSize="14sp" />
+
+            <Button
+                android:id="@+id/connectButton"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_button_primary"
+                android:paddingHorizontal="14dp"
+                android:text="Conectar"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- Botão de Descoberta Automática -->
+        <Button
+            android:id="@+id/discoverButton"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_button_secondary"
+            android:text="🔍 Buscar PC Automaticamente na Rede"
+            android:textAllCaps="false"
+            android:textColor="#93C5FD"
+            android:textSize="13sp" />
+
+        <!-- Banner de PC Encontrado -->
+        <LinearLayout
+            android:id="@+id/discoveredBanner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_banner_discovery"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="10dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/discoveredText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🖥️ PC encontrado!"
+                android:textColor="#CCFBF1"
+                android:textSize="13sp" />
+
+            <Button
+                android:id="@+id/connectDiscoveredButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_button_primary"
+                android:paddingHorizontal="10dp"
+                android:text="Conectar"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Área de Chat e Transferências -->
+    <ScrollView
+        android:id="@+id/chatScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginVertical="8dp"
+        android:layout_weight="1"
+        android:background="#111827"
+        android:padding="8dp">
+
+        <LinearLayout
+            android:id="@+id/chatMessagesContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/welcomeHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:padding="20dp"
+                android:text="Conecte-se ao seu PC para transferir arquivos, controlar mídia, usar Gamepad, Stream Deck, Touchpad ou Webcam."
+                android:textColor="#64748B"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Progresso de Transferência -->
+    <TextView
+        android:id="@+id/progressTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingVertical="2dp"
+        android:textColor="#93C5FD"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+    <ProgressBar
+        android:id="@+id/transferProgressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="6dp"
+        android:layout_marginBottom="6dp"
+        android:max="100"
+        android:progressTint="#3B82F6"
+        android:visibility="gone" />
+
+    <!-- Barra de Ferramentas Rápidas com Rolagem Horizontal -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:paddingBottom="6dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/attachButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_button_secondary"
+                android:enabled="false"
+                android:paddingHorizontal="12dp"
+                android:text="📁 Arquivos"
+                android:textAllCaps="false"
+                android:textColor="#E2E8F0"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/macroButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_button_secondary"
+                android:enabled="false"
+                android:paddingHorizontal="12dp"
+                android:text="🗂️ Macro Deck"
+                android:textAllCaps="false"
+                android:textColor="#E2E8F0"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/powerButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_button_secondary"
+                android:enabled="false"
+                android:paddingHorizontal="12dp"
+                android:text="⚡ Energia &amp; PC"
+                android:textAllCaps="false"
+                android:textColor="#E2E8F0"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/gamepadButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_button_secondary"
+                android:enabled="false"
+                android:paddingHorizontal="12dp"
+                android:text="🎮 Gamepad"
+                android:textAllCaps="false"
+                android:textColor="#E2E8F0"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/photoToClipboardButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_button_secondary"
+                android:enabled="false"
+                android:paddingHorizontal="12dp"
+                android:text="📸 Foto no Ctrl+V"
+                android:textAllCaps="false"
+                android:textColor="#E2E8F0"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/screenshotButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_button_secondary"
+                android:enabled="false"
+                android:paddingHorizontal="12dp"
+                android:text="🖥️ Ver Tela"
+                android:textAllCaps="false"
+                android:textColor="#E2E8F0"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/touchpadButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_button_secondary"
+                android:enabled="false"
+                android:paddingHorizontal="12dp"
+                android:text="🖱️ Touchpad"
+                android:textAllCaps="false"
+                android:textColor="#E2E8F0"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/explorePcButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_button_secondary"
+                android:enabled="false"
+                android:paddingHorizontal="12dp"
+                android:text="📂 Pastas do PC"
+                android:textAllCaps="false"
+                android:textColor="#E2E8F0"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/micButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_button_secondary"
+                android:enabled="false"
+                android:paddingHorizontal="12dp"
+                android:text="🎙️ Mic Sem Fio"
+                android:textAllCaps="false"
+                android:textColor="#E2E8F0"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/webcamButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_button_secondary"
+                android:enabled="false"
+                android:paddingHorizontal="12dp"
+                android:text="📷 Webcam"
+                android:textAllCaps="false"
+                android:textColor="#E2E8F0"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/clipboardButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_button_secondary"
+                android:enabled="false"
+                android:paddingHorizontal="12dp"
+                android:text="📋 Clipboard"
+                android:textAllCaps="false"
+                android:textColor="#E2E8F0"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/remoteButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:background="@drawable/bg_button_secondary"
+                android:enabled="false"
+                android:paddingHorizontal="12dp"
+                android:text="🎮 Mídia"
+                android:textAllCaps="false"
+                android:textColor="#E2E8F0"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- Barra de Digitação e Envio -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/messageEditText"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_input"
+            android:enabled="false"
+            android:hint="Mensagem..."
+            android:paddingHorizontal="12dp"
+            android:singleLine="true"
+            android:textColor="#F8FAFC"
+            android:textColorHint="#64748B"
+            android:textSize="14sp" />
+
+        <Button
+            android:id="@+id/sendButton"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_button_primary"
+            android:enabled="false"
+            android:paddingHorizontal="16dp"
+            android:text="Enviar"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp" />
+    </LinearLayout>
+</LinearLayout>

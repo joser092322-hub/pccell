@@ -1,0 +1,26 @@
+# Gradle & Android build files
+.gradle/
+build/
+**/build/
+captures/
+*.apk
+*.ap_
+*.dex
+
+# Java class & compile files
+*.class
+pccell-PC/out/
+*.jar
+
+# IDE & Editor files
+.idea/
+*.iml
+.vscode/
+local.properties
+.DS_Store
+Thumbs.db
+
+# Dist & temporary packages
+PCcell-Dist/
+dist_input/
+PCcell-Atualizado.apk
