@@ -1,53 +1,53 @@
 # PCcell
 
-Integracao e controle remoto entre computador (Windows) e smartphone (Android) via rede local ou cabo USB.
+Remote control and integration between a Windows PC and an Android smartphone over local network (Wi-Fi) or USB cable.
 
-Projeto desenvolvido com assistencia de Inteligencia Artificial.
-
----
-
-## Funcionalidades
-
-- Transmissao de tela em tempo real (60 FPS) com controle de mouse por toque e botoes de clique esquerdo e direito.
-- Gamepad virtual para uso na horizontal com D-Pad, botoes ABXY, L1/R1/L2/R2 e L3/R3.
-- Transferencia de arquivos bidirecional e explorador de pastas do PC no celular.
-- Sincronizacao de area de transferencia (texto e fotos direto para Ctrl+V).
-- Transmissao de camera do celular como webcam para o computador.
-- Microfone sem fio transmitindo audio para o PC em tempo real.
-- Atalhos de sistema (minimizar tudo, mutar som, abrir gerenciador de tarefas, navegador, etc.).
-- Monitoramento de hardware (CPU, RAM e Disco) e comandos de desligamento/reinicio.
+This project was developed with the assistance of Artificial Intelligence.
 
 ---
 
-## Arquitetura
+## Features
 
-- PC (Java 21): Servidor TCP para comunicacao e controle via Robot, alem de servidor UDP para descoberta automatica na rede.
-- Celular (Android Java): Cliente TCP com interface adaptada para rotacao de tela sem queda de conexao.
-
-Porta padrao de comunicacao: 5050 (TCP/UDP).
+- Real-time screen streaming (60 FPS) with touch control and dedicated left/right click buttons.
+- Virtual gamepad designed for landscape mode with D-Pad, ABXY buttons, L1/R1/L2/R2 bumpers, and L3/R3 analog clicks.
+- Bidirectional file transfer and remote PC directory browser.
+- Clipboard synchronization (text and instant photo pasting directly into Windows Ctrl+V).
+- Wireless webcam streaming from phone camera to PC.
+- Wireless microphone streaming real-time PCM audio to PC.
+- System macro deck (panic mode to mute/minimize all, native Task Manager shortcut, browser, media controls).
+- Hardware monitor (CPU, RAM, and Disk usage) and remote power controls (shutdown, restart, sleep).
 
 ---
 
-## Como Executar
+## Architecture
 
-### Servidor PC
+- PC (Java 21): Multi-threaded TCP server for command execution and Robot inputs, plus UDP server for local network discovery.
+- Mobile (Android Java): TCP client with configuration change handling to maintain uninterrupted connections across screen rotations.
+
+Default communication port: 5050 (TCP/UDP).
+
+---
+
+## Getting Started
+
+### PC Server
 ```bash
 javac --release 21 -d pccell-PC/out/production/project pccell-PC/project/src/*.java
 java -cp pccell-PC/out/production/project Main
 ```
 
-### Aplicativo Android
+### Android App
 ```bash
 cd pccell-cell
 ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 
-# Para conexao via cabo USB (opcional):
+# Optional: connect via USB cable without Wi-Fi
 adb reverse tcp:5050 tcp:5050
 ```
 
 ---
 
-## Licenca
+## License
 
 MIT
