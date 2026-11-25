@@ -1,6 +1,8 @@
+import ui.ModernComponents;
+import ui.ModernComponents.*;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.LineBorder;
 import java.awt.*;
 import java.awt.datatransfer.*;
 import java.awt.dnd.*;
@@ -17,94 +19,84 @@ public class AppPC extends JFrame {
 
     private static final int PORTA = 5050;
 
-    // Elementos visuais
-    private final JLabel statusLabel = new JLabel("● Aguardando conexão do celular...");
+    private final JLabel statusLabel = new JLabel("○ Aguardando conexão");
+    private final RoundedPanel statusPill = new RoundedPanel(999, ModernComponents.BG_ELEVATED, ModernComponents.BORDER_SUBTLE);
     private final JLabel ipLabel = new JLabel();
     private final JPanel historyPanel = new JPanel();
     private final JScrollPane scrollPane;
-    private final JTextField inputField = new JTextField();
-    private final JButton sendButton = new JButton("Enviar");
-    private final JButton fileButton = new JButton("📁 Arquivos...");
-    private final JButton clipboardButton = new JButton("📋 Enviar Clipboard");
-    private final JButton openFolderButton = new JButton("📂 Downloads");
+    private final ModernTextField inputField = new ModernTextField("Enviar mensagem ao celular...");
+    private final ModernButton sendButton = new ModernButton("Enviar", true, 18);
+    private final ModernButton fileButton = new ModernButton("Arquivos", false);
+    private final ModernButton clipboardButton = new ModernButton("Clipboard", false);
+    private final ModernButton openFolderButton = new ModernButton("Downloads", false);
     private final JProgressBar progressBar = new JProgressBar(0, 100);
     private final JLabel progressLabel = new JLabel("");
 
-    // Janela de Câmera Remota
     private JFrame cameraWindow;
     private JLabel cameraFeedLabel;
-
-    // System Tray
     private TrayIcon trayIcon;
 
     private final TcpServer server;
     private boolean isConnected = false;
 
-    // Cores modernas
-    private static final Color COLOR_BG = new Color(24, 24, 37);
-    private static final Color COLOR_SURFACE = new Color(30, 30, 46);
-    private static final Color COLOR_CARD = new Color(40, 40, 60);
-    private static final Color COLOR_TEXT = new Color(241, 245, 249);
-    private static final Color COLOR_MUTED = new Color(148, 163, 184);
-    private static final Color COLOR_ACCENT = new Color(37, 99, 235);
-    private static final Color COLOR_SUCCESS = new Color(16, 185, 129);
-    private static final Color COLOR_WARNING = new Color(245, 158, 11);
-
     public AppPC() {
-        super("PCcell Desktop - Conexão PC ↔ Celular");
+        super("PCcell");
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (Exception ignored) {}
 
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-        setSize(650, 680);
-        setMinimumSize(new Dimension(500, 500));
+        setSize(640, 700);
+        setMinimumSize(new Dimension(500, 520));
         setLocationRelativeTo(null);
-        getContentPane().setBackground(COLOR_BG);
+        getContentPane().setBackground(ModernComponents.BG_CANVAS);
+        setIconImage(ModernComponents.createAppIcon(64));
 
-        // Painel Superior (Cabeçalho)
         JPanel topPanel = createHeaderPanel();
 
-        // Painel Central (Feed de Mensagens e Arquivos com Drag and Drop)
         historyPanel.setLayout(new BoxLayout(historyPanel, BoxLayout.Y_AXIS));
-        historyPanel.setBackground(COLOR_BG);
-        historyPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        historyPanel.setBackground(ModernComponents.BG_CANVAS);
+        historyPanel.setBorder(new EmptyBorder(12, 14, 12, 14));
 
         scrollPane = new JScrollPane(historyPanel);
         scrollPane.setBorder(null);
-        scrollPane.setBackground(COLOR_BG);
-        scrollPane.getViewport().setBackground(COLOR_BG);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.setBackground(ModernComponents.BG_CANVAS);
+        scrollPane.getViewport().setBackground(ModernComponents.BG_CANVAS);
+        ModernComponents.styleScrollBar(scrollPane);
 
-        // Painel de Drag and Drop informativo
-        JPanel dropZoneBanner = new JPanel(new BorderLayout());
-        dropZoneBanner.setBackground(COLOR_SURFACE);
-        dropZoneBanner.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createDashedBorder(COLOR_MUTED, 2, 4, 4, true),
-                new EmptyBorder(10, 12, 10, 12)
-        ));
-        JLabel dropLabel = new JLabel("📥 Arraste e solte arquivos aqui para enviar direto ao celular", SwingConstants.CENTER);
-        dropLabel.setForeground(COLOR_MUTED);
-        dropLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        // Zona de Drag and Drop minimalista
+        RoundedPanel dropZoneBanner = new RoundedPanel(12, ModernComponents.BG_SURFACE, ModernComponents.BORDER_SUBTLE);
+        dropZoneBanner.setLayout(new BorderLayout());
+        dropZoneBanner.setBorder(new EmptyBorder(10, 14, 10, 14));
+        JLabel dropLabel = new JLabel("Arraste arquivos para esta janela para enviar ao celular", SwingConstants.CENTER);
+        dropLabel.setForeground(ModernComponents.TEXT_MUTED);
+        dropLabel.setFont(ModernComponents.uiFont(Font.PLAIN, 12));
         dropZoneBanner.add(dropLabel, BorderLayout.CENTER);
 
+        JPanel dropWrapper = new JPanel(new BorderLayout());
+        dropWrapper.setBackground(ModernComponents.BG_CANVAS);
+        dropWrapper.setBorder(new EmptyBorder(12, 16, 4, 16));
+        dropWrapper.add(dropZoneBanner, BorderLayout.CENTER);
+
         JPanel centerContainer = new JPanel(new BorderLayout());
-        centerContainer.setBackground(COLOR_BG);
-        centerContainer.add(dropZoneBanner, BorderLayout.NORTH);
+        centerContainer.setBackground(ModernComponents.BG_CANVAS);
+        centerContainer.add(dropWrapper, BorderLayout.NORTH);
         centerContainer.add(scrollPane, BorderLayout.CENTER);
 
-        // Barra de Progresso de Envio/Recebimento
-        JPanel progressPanel = new JPanel(new BorderLayout(5, 5));
-        progressPanel.setBackground(COLOR_BG);
-        progressPanel.setBorder(new EmptyBorder(4, 16, 4, 16));
-        progressBar.setStringPainted(true);
+        // Progresso minimalista
+        JPanel progressPanel = new JPanel(new BorderLayout(10, 4));
+        progressPanel.setBackground(ModernComponents.BG_CANVAS);
+        progressPanel.setBorder(new EmptyBorder(4, 16, 6, 16));
+        progressBar.setBorderPainted(false);
+        progressBar.setBackground(ModernComponents.BG_ELEVATED);
+        progressBar.setForeground(ModernComponents.ACCENT_BLUE);
+        progressBar.setPreferredSize(new Dimension(0, 6));
         progressBar.setVisible(false);
-        progressLabel.setForeground(COLOR_TEXT);
-        progressLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        progressLabel.setForeground(ModernComponents.TEXT_SECONDARY);
+        progressLabel.setFont(ModernComponents.uiFont(Font.PLAIN, 11));
         progressPanel.add(progressLabel, BorderLayout.WEST);
         progressPanel.add(progressBar, BorderLayout.CENTER);
 
-        // Barra Inferior de Envio e Ações
         JPanel bottomPanel = createBottomPanel(progressPanel);
 
         setLayout(new BorderLayout());
@@ -112,20 +104,17 @@ public class AppPC extends JFrame {
         add(centerContainer, BorderLayout.CENTER);
         add(bottomPanel, BorderLayout.SOUTH);
 
-        // Configura Drag and Drop
         setupDragAndDrop();
-
-        // Configura Bandeja do Windows (System Tray)
         setupSystemTray();
 
-        // Inicializa o servidor TCP com callbacks completos
         server = new TcpServer(PORTA, new TcpServer.ServerListener() {
             @Override
             public void onStatusChanged(String status, boolean conectado) {
                 SwingUtilities.invokeLater(() -> {
                     isConnected = conectado;
                     statusLabel.setText((conectado ? "● " : "○ ") + status);
-                    statusLabel.setForeground(conectado ? COLOR_SUCCESS : COLOR_WARNING);
+                    statusLabel.setForeground(conectado ? ModernComponents.STATUS_SUCCESS : ModernComponents.STATUS_WARNING);
+                    statusPill.setStrokeColor(conectado ? new Color(16, 185, 129, 90) : ModernComponents.BORDER_SUBTLE);
                     sendButton.setEnabled(conectado);
                     fileButton.setEnabled(conectado);
                     clipboardButton.setEnabled(conectado);
@@ -154,8 +143,12 @@ public class AppPC extends JFrame {
                 SwingUtilities.invokeLater(() -> {
                     if ("CAM_STOP".equals(comando)) {
                         fecharJanelaCamera();
-                    } else if (!comando.startsWith("MOUSE") && !comando.startsWith("KEY") && !comando.startsWith("GAMEPAD")) {
-                        addCommandCard("Comando Remoto", comando + (parametro.isEmpty() ? "" : ": " + parametro));
+                    } else if (!comando.startsWith("MOUSE")
+                            && !comando.startsWith("KEY")
+                            && !comando.startsWith("GAMEPAD")
+                            && !comando.startsWith("REMOTE_MOUSE")
+                            && !comando.startsWith("STREAM_SCREEN")) {
+                        addCommandCard("Controle remoto", comando + (parametro.isEmpty() ? "" : " (" + parametro + ")"));
                     }
                 });
             }
@@ -164,9 +157,9 @@ public class AppPC extends JFrame {
             public void onImagePastedToClipboard() {
                 SwingUtilities.invokeLater(() -> {
                     Toolkit.getDefaultToolkit().beep();
-                    addSystemMessage("📸 Foto recebida do celular e colada no Ctrl+V do Windows!", false);
+                    addSystemMessage("Foto recebida e copiada para a area de transferencia (Ctrl+V).", false);
                     if (trayIcon != null) {
-                        trayIcon.displayMessage("Foto no Clipboard!", "A foto tirada no celular já pode ser colada com Ctrl+V.", TrayIcon.MessageType.INFO);
+                        trayIcon.displayMessage("PCcell", "Foto disponivel para colar com Ctrl+V.", TrayIcon.MessageType.INFO);
                     }
                 });
             }
@@ -182,14 +175,14 @@ public class AppPC extends JFrame {
                     Toolkit.getDefaultToolkit().beep();
                     addFileCard("Celular", arquivo, false);
                     if (trayIcon != null) {
-                        trayIcon.displayMessage("Arquivo Recebido!", arquivo.getName() + " foi salvo em Downloads.", TrayIcon.MessageType.INFO);
+                        trayIcon.displayMessage("Arquivo recebido", arquivo.getName() + " salvo em Downloads.", TrayIcon.MessageType.INFO);
                     }
                 });
             }
 
             @Override
             public void onFileSent(File arquivo) {
-                SwingUtilities.invokeLater(() -> addFileCard("Você (PC)", arquivo, true));
+                SwingUtilities.invokeLater(() -> addFileCard("Você", arquivo, true));
             }
 
             @Override
@@ -208,18 +201,17 @@ public class AppPC extends JFrame {
 
             @Override
             public void onError(String erro) {
-                SwingUtilities.invokeLater(() -> addSystemMessage("[Aviso/Erro] " + erro, true));
+                SwingUtilities.invokeLater(() -> addSystemMessage("Erro: " + erro, true));
             }
         });
 
-        // Evento de fechar janela -> Minimiza para o Tray
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
                 if (SystemTray.isSupported()) {
                     setVisible(false);
                     if (trayIcon != null) {
-                        trayIcon.displayMessage("PCcell", "Minimizado para a bandeja do sistema. Clique 2 vezes para reabrir.", TrayIcon.MessageType.INFO);
+                        trayIcon.displayMessage("PCcell", "Em execucao na bandeja do sistema.", TrayIcon.MessageType.INFO);
                     }
                 } else {
                     encerrarAplicativo();
@@ -228,7 +220,7 @@ public class AppPC extends JFrame {
         });
 
         server.start();
-        addSystemMessage("Servidor PCcell iniciado! Descoberta e recursos remotos prontos.", false);
+        addSystemMessage("Servidor ativo na porta " + PORTA + ". Aguardando dispositivo.", false);
     }
 
     private void setupSystemTray() {
@@ -236,11 +228,7 @@ public class AppPC extends JFrame {
 
         try {
             SystemTray tray = SystemTray.getSystemTray();
-            Image iconImage = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-            Graphics2D g = (Graphics2D) iconImage.getGraphics();
-            g.setColor(COLOR_ACCENT);
-            g.fillOval(0, 0, 16, 16);
-            g.dispose();
+            Image iconImage = ModernComponents.createAppIcon(32);
 
             PopupMenu popup = new PopupMenu();
             MenuItem openItem = new MenuItem("Abrir PCcell");
@@ -250,7 +238,7 @@ public class AppPC extends JFrame {
                 toFront();
             });
 
-            MenuItem folderItem = new MenuItem("Abrir Pasta Downloads");
+            MenuItem folderItem = new MenuItem("Pasta Downloads");
             folderItem.addActionListener(e -> abrirPastaDownloads());
 
             MenuItem exitItem = new MenuItem("Sair");
@@ -271,7 +259,7 @@ public class AppPC extends JFrame {
 
             tray.add(trayIcon);
         } catch (Exception e) {
-            System.err.println("Não foi possível registrar SystemTray: " + e.getMessage());
+            System.err.println("Nao foi possivel registrar SystemTray: " + e.getMessage());
         }
     }
 
@@ -287,11 +275,12 @@ public class AppPC extends JFrame {
             if (img == null) return;
 
             if (cameraWindow == null) {
-                cameraWindow = new JFrame("📷 Câmera Remota do Celular (Webcam)");
+                cameraWindow = new JFrame("PCcell Webcam");
                 cameraWindow.setSize(540, 720);
                 cameraWindow.setLocationRelativeTo(this);
+                cameraWindow.setIconImage(ModernComponents.createAppIcon(64));
                 cameraFeedLabel = new JLabel("", SwingConstants.CENTER);
-                cameraFeedLabel.setBackground(Color.BLACK);
+                cameraFeedLabel.setBackground(ModernComponents.BG_CANVAS);
                 cameraFeedLabel.setOpaque(true);
                 cameraWindow.add(cameraFeedLabel);
                 cameraWindow.addWindowListener(new WindowAdapter() {
@@ -319,53 +308,84 @@ public class AppPC extends JFrame {
     }
 
     private JPanel createHeaderPanel() {
-        JPanel header = new JPanel(new BorderLayout(10, 6));
-        header.setBackground(COLOR_SURFACE);
-        header.setBorder(new EmptyBorder(14, 16, 14, 16));
+        JPanel header = new JPanel(new BorderLayout(12, 8));
+        header.setBackground(ModernComponents.BG_SURFACE);
+        header.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, ModernComponents.BORDER_SUBTLE),
+                new EmptyBorder(14, 18, 14, 18)
+        ));
+
+        JPanel titleRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        titleRow.setOpaque(false);
+
+        JLabel title = new JLabel("PCcell");
+        title.setForeground(ModernComponents.TEXT_PRIMARY);
+        title.setFont(ModernComponents.uiFont(Font.BOLD, 18));
+
+        JLabel subtitle = new JLabel("  •  Porta " + PORTA);
+        subtitle.setForeground(ModernComponents.TEXT_MUTED);
+        subtitle.setFont(ModernComponents.uiFont(Font.PLAIN, 12));
+
+        titleRow.add(title);
+        titleRow.add(subtitle);
 
         String ipLocal = TcpServer.getLocalIpAddress();
-        ipLabel.setText("IP do PC: " + ipLocal + "  |  Porta: " + PORTA);
-        ipLabel.setForeground(COLOR_TEXT);
-        ipLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        ipLabel.setText(ipLocal);
+        ipLabel.setForeground(ModernComponents.ACCENT_CYAN);
+        ipLabel.setFont(ModernComponents.monoFont(Font.BOLD, 13));
 
-        JButton copyIpBtn = new JButton("Copiar IP");
-        copyIpBtn.setFocusPainted(false);
+        ModernButton copyIpBtn = new ModernButton("Copiar IP", false, 8);
+        copyIpBtn.setFont(ModernComponents.uiFont(Font.BOLD, 11));
+        copyIpBtn.setBorder(new EmptyBorder(5, 10, 5, 10));
         copyIpBtn.addActionListener(e -> {
             setSystemClipboard(ipLocal);
-            JOptionPane.showMessageDialog(this, "IP copiado: " + ipLocal, "Copiado", JOptionPane.INFORMATION_MESSAGE);
+            copyIpBtn.setText("Copiado");
+            Timer t = new Timer(1500, ev -> copyIpBtn.setText("Copiar IP"));
+            t.setRepeats(false);
+            t.start();
         });
 
         JPanel ipContainer = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         ipContainer.setOpaque(false);
+        JLabel ipPrefix = new JLabel("IP Local:");
+        ipPrefix.setForeground(ModernComponents.TEXT_SECONDARY);
+        ipPrefix.setFont(ModernComponents.uiFont(Font.PLAIN, 12));
+        ipContainer.add(ipPrefix);
         ipContainer.add(ipLabel);
         ipContainer.add(copyIpBtn);
 
-        statusLabel.setForeground(COLOR_WARNING);
-        statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
-
-        JLabel infoSub = new JLabel("📡 Descoberta ativa • Touchpad, Explorador e Câmera habilitados");
-        infoSub.setForeground(COLOR_MUTED);
-        infoSub.setFont(new Font("SansSerif", Font.PLAIN, 11));
-
-        JPanel leftBox = new JPanel(new GridLayout(3, 1, 0, 3));
+        JPanel leftBox = new JPanel(new GridLayout(2, 1, 0, 4));
         leftBox.setOpaque(false);
+        leftBox.add(titleRow);
         leftBox.add(ipContainer);
-        leftBox.add(statusLabel);
-        leftBox.add(infoSub);
+
+        statusLabel.setForeground(ModernComponents.STATUS_WARNING);
+        statusLabel.setFont(ModernComponents.uiFont(Font.BOLD, 11));
+        statusPill.setLayout(new BorderLayout());
+        statusPill.setBorder(new EmptyBorder(6, 12, 6, 12));
+        statusPill.add(statusLabel, BorderLayout.CENTER);
+
+        JPanel rightWrapper = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 4));
+        rightWrapper.setOpaque(false);
+        rightWrapper.add(statusPill);
 
         header.add(leftBox, BorderLayout.WEST);
+        header.add(rightWrapper, BorderLayout.EAST);
         return header;
     }
 
     private JPanel createBottomPanel(JPanel progressPanel) {
-        JPanel bottomContainer = new JPanel(new BorderLayout(0, 4));
-        bottomContainer.setBackground(COLOR_BG);
+        JPanel bottomContainer = new JPanel(new BorderLayout());
+        bottomContainer.setBackground(ModernComponents.BG_CANVAS);
         bottomContainer.add(progressPanel, BorderLayout.NORTH);
 
-        // Toolbar de botões
-        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
-        toolbar.setBackground(COLOR_SURFACE);
-        toolbar.setBorder(new EmptyBorder(2, 8, 2, 8));
+        JPanel surfaceFooter = new JPanel(new BorderLayout());
+        surfaceFooter.setBackground(ModernComponents.BG_SURFACE);
+        surfaceFooter.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, ModernComponents.BORDER_SUBTLE));
+
+        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        toolbar.setOpaque(false);
+        toolbar.setBorder(new EmptyBorder(10, 14, 6, 14));
 
         fileButton.setEnabled(false);
         fileButton.addActionListener(e -> escolherEEnviarArquivos());
@@ -379,29 +399,24 @@ public class AppPC extends JFrame {
         toolbar.add(clipboardButton);
         toolbar.add(openFolderButton);
 
-        // Barra de digitação
-        JPanel inputBar = new JPanel(new BorderLayout(8, 0));
-        inputBar.setBackground(COLOR_SURFACE);
-        inputBar.setBorder(new EmptyBorder(8, 12, 12, 12));
+        JPanel inputBar = new JPanel(new BorderLayout(10, 0));
+        inputBar.setOpaque(false);
+        inputBar.setBorder(new EmptyBorder(6, 14, 14, 14));
 
-        inputField.setFont(new Font("SansSerif", Font.PLAIN, 14));
         inputField.setEnabled(false);
         inputField.addActionListener(e -> enviarMensagem());
 
         sendButton.setEnabled(false);
-        sendButton.setBackground(COLOR_ACCENT);
-        sendButton.setForeground(Color.WHITE);
-        sendButton.setFont(new Font("SansSerif", Font.BOLD, 13));
+        sendButton.setBorder(new EmptyBorder(10, 20, 10, 20));
         sendButton.addActionListener(e -> enviarMensagem());
 
         inputBar.add(inputField, BorderLayout.CENTER);
         inputBar.add(sendButton, BorderLayout.EAST);
 
-        JPanel wrapper = new JPanel(new BorderLayout());
-        wrapper.add(toolbar, BorderLayout.NORTH);
-        wrapper.add(inputBar, BorderLayout.SOUTH);
+        surfaceFooter.add(toolbar, BorderLayout.NORTH);
+        surfaceFooter.add(inputBar, BorderLayout.SOUTH);
 
-        bottomContainer.add(wrapper, BorderLayout.CENTER);
+        bottomContainer.add(surfaceFooter, BorderLayout.CENTER);
         return bottomContainer;
     }
 
@@ -446,7 +461,7 @@ public class AppPC extends JFrame {
     private void escolherEEnviarArquivos() {
         JFileChooser chooser = new JFileChooser();
         chooser.setMultiSelectionEnabled(true);
-        chooser.setDialogTitle("Selecione arquivos para enviar ao celular");
+        chooser.setDialogTitle("Selecione arquivos para enviar");
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             File[] selected = chooser.getSelectedFiles();
             if (selected != null) {
@@ -461,9 +476,9 @@ public class AppPC extends JFrame {
         String texto = getSystemClipboard();
         if (texto != null && !texto.isEmpty()) {
             server.sendClipboard(texto);
-            addClipboardCard("Você (PC)", texto);
+            addClipboardCard("Você", texto);
         } else {
-            JOptionPane.showMessageDialog(this, "A área de transferência está vazia ou não contém texto.", "Aviso", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "A area de transferencia esta vazia.", "Aviso", JOptionPane.INFORMATION_MESSAGE);
         }
     }
 
@@ -473,7 +488,7 @@ public class AppPC extends JFrame {
             if (!pasta.exists()) pasta.mkdirs();
             Desktop.getDesktop().open(pasta);
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Não foi possível abrir a pasta: " + e.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Nao foi possivel abrir a pasta: " + e.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -482,26 +497,25 @@ public class AppPC extends JFrame {
         if (texto.isEmpty()) return;
 
         server.sendText(texto);
-        addTextMessage("Você (PC)", texto, true);
+        addTextMessage("Você", texto, true);
         inputField.setText("");
     }
 
-    // Adiciona cartão de mensagem no feed (Esquerda para o outro dispositivo, Direita em Azul para o PC)
     private void addTextMessage(String remetente, String texto, boolean isSent) {
-        JPanel card = createBaseCard(remetente, isSent ? COLOR_ACCENT : COLOR_CARD);
-        JLabel content = new JLabel("<html><body style='width: 320px; word-wrap: break-word;'>" + escapeHtml(texto) + "</body></html>");
-        content.setForeground(COLOR_TEXT);
-        content.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        RoundedPanel card = createBaseCard(remetente, isSent);
+        JLabel content = new JLabel("<html><body style='width: 300px; word-wrap: break-word;'>" + escapeHtml(texto) + "</body></html>");
+        content.setForeground(ModernComponents.TEXT_PRIMARY);
+        content.setFont(ModernComponents.uiFont(Font.PLAIN, 13));
         card.add(content, BorderLayout.CENTER);
 
-        // Se for um link HTTP, adiciona botão para abrir no navegador
         if (texto.startsWith("http://") || texto.startsWith("https://")) {
-            JButton openLinkBtn = new JButton("🌐 Abrir no Navegador");
-            openLinkBtn.setFocusPainted(false);
+            ModernButton openLinkBtn = new ModernButton("Abrir link", false, 8);
+            openLinkBtn.setFont(ModernComponents.uiFont(Font.BOLD, 11));
+            openLinkBtn.setBorder(new EmptyBorder(5, 10, 5, 10));
             openLinkBtn.addActionListener(e -> {
                 try { Desktop.getDesktop().browse(new URI(texto)); } catch (Exception ignored) {}
             });
-            JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 4));
+            JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 6));
             actionPanel.setOpaque(false);
             actionPanel.add(openLinkBtn);
             card.add(actionPanel, BorderLayout.SOUTH);
@@ -510,23 +524,17 @@ public class AppPC extends JFrame {
         appendRowToHistory(card, isSent);
     }
 
-    // Adiciona cartão de arquivo no feed com Miniatura Real (Thumbnail) se for imagem
     private void addFileCard(String remetente, File arquivo, boolean isSent) {
-        JPanel card = createBaseCard(remetente, isSent ? COLOR_ACCENT : COLOR_CARD);
-        card.setBorder(BorderFactory.createCompoundBorder(
-                new LineBorder(isSent ? new Color(147, 197, 253) : COLOR_SUCCESS, 1, true),
-                new EmptyBorder(8, 10, 8, 10)
-        ));
+        RoundedPanel card = createBaseCard(remetente, isSent);
 
-        JPanel contentBox = new JPanel(new BorderLayout(6, 6));
+        JPanel contentBox = new JPanel(new BorderLayout(8, 8));
         contentBox.setOpaque(false);
 
-        // Se for imagem, carrega miniatura real
         if (isImageFile(arquivo.getName())) {
             try {
                 BufferedImage bimg = ImageIO.read(arquivo);
                 if (bimg != null) {
-                    int maxW = 160, maxH = 120;
+                    int maxW = 180, maxH = 130;
                     int origW = bimg.getWidth(), origH = bimg.getHeight();
                     int newW = maxW, newH = maxH;
                     if (origW > origH) {
@@ -536,34 +544,35 @@ public class AppPC extends JFrame {
                     }
                     Image thumb = bimg.getScaledInstance(Math.max(1, newW), Math.max(1, newH), Image.SCALE_SMOOTH);
                     JLabel thumbLabel = new JLabel(new ImageIcon(thumb));
-                    thumbLabel.setBorder(new LineBorder(new Color(255, 255, 255, 40), 1, true));
                     contentBox.add(thumbLabel, BorderLayout.NORTH);
                 }
             } catch (Exception ignored) {}
         }
 
         String sizeText = formatFileSize(arquivo.length());
-        JLabel fileInfo = new JLabel("<html><b>📄 " + escapeHtml(arquivo.getName()) + "</b> (" + sizeText + ")</html>");
-        fileInfo.setForeground(COLOR_TEXT);
-        fileInfo.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        JLabel fileInfo = new JLabel("<html><b>" + escapeHtml(arquivo.getName()) + "</b> <span style='color:#a1a1aa;'>(" + sizeText + ")</span></html>");
+        fileInfo.setForeground(ModernComponents.TEXT_PRIMARY);
+        fileInfo.setFont(ModernComponents.uiFont(Font.PLAIN, 13));
         contentBox.add(fileInfo, BorderLayout.CENTER);
         card.add(contentBox, BorderLayout.CENTER);
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 6));
         actions.setOpaque(false);
 
-        JButton openBtn = new JButton("Abrir Arquivo");
-        openBtn.setFocusPainted(false);
+        ModernButton openBtn = new ModernButton("Abrir", false, 8);
+        openBtn.setFont(ModernComponents.uiFont(Font.BOLD, 11));
+        openBtn.setBorder(new EmptyBorder(5, 10, 5, 10));
         openBtn.addActionListener(e -> {
             try {
                 Desktop.getDesktop().open(arquivo);
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Não foi possível abrir o arquivo: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Nao foi possivel abrir o arquivo: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
             }
         });
 
-        JButton folderBtn = new JButton("Ver na Pasta");
-        folderBtn.setFocusPainted(false);
+        ModernButton folderBtn = new ModernButton("Mostrar na pasta", false, 8);
+        folderBtn.setFont(ModernComponents.uiFont(Font.BOLD, 11));
+        folderBtn.setBorder(new EmptyBorder(5, 10, 5, 10));
         folderBtn.addActionListener(e -> {
             try {
                 Runtime.getRuntime().exec(new String[]{"explorer.exe", "/select,", arquivo.getAbsolutePath()});
@@ -586,17 +595,19 @@ public class AppPC extends JFrame {
 
     private void addClipboardCard(String remetente, String clipboardText) {
         boolean isSent = remetente.startsWith("Você");
-        JPanel card = createBaseCard(remetente, isSent ? COLOR_ACCENT : COLOR_CARD);
+        RoundedPanel card = createBaseCard(remetente + " • Clipboard", isSent);
         String preview = clipboardText.length() > 120 ? clipboardText.substring(0, 120) + "..." : clipboardText;
-        JLabel lbl = new JLabel("<html><b>📋 Área de Transferência:</b><br/>" + escapeHtml(preview) + "</html>");
-        lbl.setForeground(COLOR_TEXT);
+        JLabel lbl = new JLabel("<html><body style='width: 280px; word-wrap: break-word;'>" + escapeHtml(preview) + "</body></html>");
+        lbl.setForeground(ModernComponents.TEXT_PRIMARY);
+        lbl.setFont(ModernComponents.uiFont(Font.PLAIN, 12));
         card.add(lbl, BorderLayout.CENTER);
 
-        JButton copyBtn = new JButton("Copiar novamente");
-        copyBtn.setFocusPainted(false);
+        ModernButton copyBtn = new ModernButton("Copiar", false, 8);
+        copyBtn.setFont(ModernComponents.uiFont(Font.BOLD, 11));
+        copyBtn.setBorder(new EmptyBorder(5, 10, 5, 10));
         copyBtn.addActionListener(e -> setSystemClipboard(clipboardText));
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 4));
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 6));
         actions.setOpaque(false);
         actions.add(copyBtn);
         card.add(actions, BorderLayout.SOUTH);
@@ -605,9 +616,10 @@ public class AppPC extends JFrame {
     }
 
     private void addCommandCard(String titulo, String detalhe) {
-        JPanel card = createBaseCard(titulo, COLOR_CARD);
-        JLabel lbl = new JLabel("<html><b>🎮 Ação:</b> " + escapeHtml(detalhe) + "</html>");
-        lbl.setForeground(COLOR_TEXT);
+        RoundedPanel card = createBaseCard(titulo, false);
+        JLabel lbl = new JLabel(detalhe);
+        lbl.setForeground(ModernComponents.TEXT_SECONDARY);
+        lbl.setFont(ModernComponents.uiFont(Font.PLAIN, 12));
         card.add(lbl, BorderLayout.CENTER);
         appendRowToHistory(card, false);
     }
@@ -616,8 +628,8 @@ public class AppPC extends JFrame {
         JPanel p = new JPanel(new FlowLayout(FlowLayout.CENTER));
         p.setOpaque(false);
         JLabel l = new JLabel(msg);
-        l.setForeground(isError ? new Color(239, 68, 68) : COLOR_MUTED);
-        l.setFont(new Font("SansSerif", Font.ITALIC, 11));
+        l.setForeground(isError ? ModernComponents.STATUS_ERROR : ModernComponents.TEXT_MUTED);
+        l.setFont(ModernComponents.uiFont(Font.PLAIN, 11));
         p.add(l);
 
         historyPanel.add(p);
@@ -625,15 +637,17 @@ public class AppPC extends JFrame {
         historyPanel.repaint();
     }
 
-    private JPanel createBaseCard(String remetente, Color bgColor) {
-        JPanel card = new JPanel(new BorderLayout(4, 4));
-        card.setBackground(bgColor);
-        card.setBorder(new EmptyBorder(8, 12, 8, 12));
+    private RoundedPanel createBaseCard(String remetente, boolean isSent) {
+        Color bg = isSent ? ModernComponents.ACCENT_BLUE : ModernComponents.BG_ELEVATED;
+        Color border = isSent ? null : ModernComponents.BORDER_SUBTLE;
+        RoundedPanel card = new RoundedPanel(14, bg, border);
+        card.setLayout(new BorderLayout(4, 4));
+        card.setBorder(new EmptyBorder(10, 14, 10, 14));
 
         String time = new SimpleDateFormat("HH:mm").format(new Date());
         JLabel header = new JLabel(remetente + " • " + time);
-        header.setForeground(COLOR_MUTED);
-        header.setFont(new Font("SansSerif", Font.BOLD, 11));
+        header.setForeground(isSent ? new Color(191, 219, 254) : ModernComponents.TEXT_MUTED);
+        header.setFont(ModernComponents.uiFont(Font.BOLD, 10));
         card.add(header, BorderLayout.NORTH);
         return card;
     }
@@ -645,7 +659,7 @@ public class AppPC extends JFrame {
         row.add(card);
 
         historyPanel.add(row);
-        historyPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        historyPanel.add(Box.createRigidArea(new Dimension(0, 6)));
         historyPanel.revalidate();
         historyPanel.repaint();
 

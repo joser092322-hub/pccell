@@ -4,7 +4,6 @@ import android.Manifest;
 import android.animation.ObjectAnimator;
 import android.animation.AnimatorSet;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.*;
 import android.content.pm.ActivityInfo;
@@ -66,8 +65,8 @@ public class MainActivity extends Activity {
     private Thread micThread;
 
     // Estado do Explorador Remoto e Hardware
-    private AlertDialog exploreDialog;
-    private AlertDialog hardwareDialog;
+    private Dialog exploreDialog;
+    private Dialog hardwareDialog;
     private TextView hardwareStatsText;
 
     // Foto para Clipboard
@@ -82,8 +81,10 @@ public class MainActivity extends Activity {
     private TextView micStatusText;
     private ProgressBar micLevelBar;
     private Button micToggleButton;
-    private TextView micIcon;
+    private ImageView micIcon;
     private AnimatorSet micPulseAnimator;
+    private TextView allToolsButton;
+    private LinearLayout connectionCard;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -99,6 +100,8 @@ public class MainActivity extends Activity {
         discoveredBanner = findViewById(R.id.discoveredBanner);
         discoveredText = findViewById(R.id.discoveredText);
         connectDiscoveredButton = findViewById(R.id.connectDiscoveredButton);
+        connectionCard = findViewById(R.id.connectionCard);
+        allToolsButton = findViewById(R.id.allToolsButton);
 
         statusTextView = findViewById(R.id.statusTextView);
         chatScrollView = findViewById(R.id.chatScrollView);
@@ -136,27 +139,28 @@ public class MainActivity extends Activity {
             public void onStatusChanged(String status, boolean connected) {
                 runOnUiThread(() -> {
                     boolean connecting = status.startsWith("Conectando");
-                    statusTextView.setText((connected ? "● " : "○ ") + status);
-                    statusTextView.setTextColor(connected ? Color.parseColor("#10B981") : (connecting ? Color.parseColor("#F59E0B") : Color.parseColor("#94A3B8")));
+                    statusTextView.setText(connected ? "● Conectado" : (connecting ? "○ Conectando" : "○ Desconectado"));
+                    statusTextView.setTextColor(connected ? Color.parseColor("#10B981") : (connecting ? Color.parseColor("#F59E0B") : Color.parseColor("#A1A1AA")));
 
                     connectButton.setText(connected ? "Desconectar" : (connecting ? "Cancelar" : "Conectar"));
                     ipEditText.setEnabled(!connected && !connecting);
                     discoverButton.setEnabled(!connected && !connecting);
+                    discoverButton.setVisibility(connected ? View.GONE : View.VISIBLE);
 
+                    float activeAlpha = connected ? 1.0f : 0.45f;
+                    Button[] tools = {
+                            attachButton, macroButton, powerButton, gamepadButton,
+                            photoToClipboardButton, screenshotButton, touchpadButton,
+                            explorePcButton, micButton, webcamButton, clipboardButton,
+                            remoteButton, sendButton
+                    };
+                    for (Button b : tools) {
+                        b.setEnabled(connected);
+                        b.setAlpha(activeAlpha);
+                    }
                     messageEditText.setEnabled(connected);
-                    sendButton.setEnabled(connected);
-                    attachButton.setEnabled(connected);
-                    macroButton.setEnabled(connected);
-                    powerButton.setEnabled(connected);
-                    gamepadButton.setEnabled(connected);
-                    photoToClipboardButton.setEnabled(connected);
-                    screenshotButton.setEnabled(connected);
-                    touchpadButton.setEnabled(connected);
-                    explorePcButton.setEnabled(connected);
-                    micButton.setEnabled(connected);
-                    webcamButton.setEnabled(connected);
-                    clipboardButton.setEnabled(connected);
-                    remoteButton.setEnabled(connected);
+                    allToolsButton.setEnabled(connected);
+                    allToolsButton.setAlpha(activeAlpha);
                 });
             }
 
@@ -171,7 +175,7 @@ public class MainActivity extends Activity {
                     copyToClipboard(text);
                     addClipboardCard("PC", text);
                     vibrarFeedback(50);
-                    Toast.makeText(MainActivity.this, "📋 Texto copiado para a área de transferência!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Texto copiado para a area de transferencia.", Toast.LENGTH_SHORT).show();
                 });
             }
 
@@ -196,9 +200,9 @@ public class MainActivity extends Activity {
             public void onHardwareStatsReceived(int cpu, int ram, long ramFreeMb, long ramTotalMb, int disk, long diskFreeGb, long diskTotalGb) {
                 runOnUiThread(() -> {
                     if (hardwareStatsText != null) {
-                        String txt = "⚡ CPU: " + cpu + "%\n" +
-                                "🧠 Memória RAM: " + ram + "% (" + (ramTotalMb - ramFreeMb) + " MB / " + ramTotalMb + " MB)\n" +
-                                "💾 Disco (C:): " + disk + "% (" + diskFreeGb + " GB livres de " + diskTotalGb + " GB)";
+                        String txt = "CPU: " + cpu + "%\n" +
+                                "RAM: " + ram + "% (" + (ramTotalMb - ramFreeMb) + " / " + ramTotalMb + " MB)\n" +
+                                "Disco (C:): " + disk + "% (" + diskFreeGb + " GB livres de " + diskTotalGb + " GB)";
                         hardwareStatsText.setText(txt);
                     }
                 });
@@ -293,19 +297,22 @@ public class MainActivity extends Activity {
             startActivityForResult(intent, PICK_FILE);
         });
 
+        // Botão Grade Completa ("Ver todos")
+        allToolsButton.setOnClickListener(v -> showAllToolsDialog());
+
         // 1. Macro Deck
         macroButton.setOnClickListener(v -> exibirMacroDeckDialog());
 
         // 2. Energia & Hardware
         powerButton.setOnClickListener(v -> exibirEnergiaHardwareDialog());
 
-        // 3. Gamepad (new beautiful UI)
+        // 3. Gamepad
         gamepadButton.setOnClickListener(v -> showGamepadDialog());
 
         // 4. Foto no Ctrl+V
         photoToClipboardButton.setOnClickListener(v -> tirarFotoParaClipboard());
 
-        // 5. Screenshot do PC -> now opens Remote Desktop
+        // 5. Ver Tela 60Hz
         screenshotButton.setOnClickListener(v -> showRemoteDesktopDialog());
 
         // 6. Touchpad
@@ -317,10 +324,10 @@ public class MainActivity extends Activity {
             client.sendCommand("BROWSE_DIR", "ROOT");
         });
 
-        // 8. Microfone Sem Fio (new beautiful UI)
+        // 8. Microfone Sem Fio
         micButton.setOnClickListener(v -> showMicDialog());
 
-        // 9. Câmera / Webcam (new beautiful UI)
+        // 9. Câmera / Webcam
         webcamButton.setOnClickListener(v -> showCameraStudioDialog());
 
         // 10. Clipboard & Mídia
@@ -342,65 +349,186 @@ public class MainActivity extends Activity {
     }
 
     // ==========================================
-    // 1. 🗂️ MACRO DECK / STREAM DECK
+    // HELPERS DE INTERFACE MINIMALISTA
     // ==========================================
-    private void exibirMacroDeckDialog() {
-        AlertDialog.Builder b = new AlertDialog.Builder(this);
+    private Dialog createDarkModal(LinearLayout root) {
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
+        }
+        dialog.setContentView(root);
+        if (dialog.getWindow() != null) {
+            int width = (int) (getResources().getDisplayMetrics().widthPixels * 0.92f);
+            dialog.getWindow().setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+        return dialog;
+    }
+
+    private LinearLayout createDarkModalRoot(String title, String subtitle) {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.parseColor("#0F172A"));
-        root.setPadding(20, 20, 20, 20);
+        root.setPadding(dp(20), dp(20), dp(20), dp(18));
 
-        TextView t = new TextView(this);
-        t.setText("🗂️ Macro Deck (Stream Deck)");
-        t.setTextColor(Color.WHITE);
-        t.setTextSize(17);
-        t.setTypeface(null, Typeface.BOLD);
-        t.setGravity(Gravity.CENTER);
-        t.setPadding(0, 0, 0, 16);
-        root.addView(t);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.parseColor("#111114"));
+        bg.setCornerRadius(dp(20));
+        bg.setStroke(dp(1), Color.parseColor("#27272A"));
+        root.setBackground(bg);
 
-        // Botão Modo Pânico (Vermelho e Grande)
-        Button btnPanic = new Button(this);
-        btnPanic.setText("🚨 MODO PÂNICO (Minimizar & Mutar)");
-        btnPanic.setBackgroundColor(Color.parseColor("#DC2626"));
-        btnPanic.setTextColor(Color.WHITE);
-        btnPanic.setTextSize(13);
-        btnPanic.setTypeface(null, Typeface.BOLD);
+        TextView tvTitle = new TextView(this);
+        tvTitle.setText(title);
+        tvTitle.setTextColor(Color.parseColor("#FAFAFA"));
+        tvTitle.setTextSize(17);
+        tvTitle.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        root.addView(tvTitle);
+
+        if (subtitle != null && !subtitle.isEmpty()) {
+            TextView tvSub = new TextView(this);
+            tvSub.setText(subtitle);
+            tvSub.setTextColor(Color.parseColor("#A1A1AA"));
+            tvSub.setTextSize(12);
+            tvSub.setPadding(0, dp(3), 0, 0);
+            root.addView(tvSub);
+        }
+
+        View divider = new View(this);
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1);
+        dlp.setMargins(0, dp(12), 0, dp(14));
+        divider.setLayoutParams(dlp);
+        divider.setBackgroundColor(Color.parseColor("#27272A"));
+        root.addView(divider);
+
+        return root;
+    }
+
+    private Button makeStyledModalBtn(String text, String fillHex, String strokeHex, String textHex) {
+        Button btn = new Button(this);
+        btn.setText(text);
+        btn.setAllCaps(false);
+        btn.setTextSize(13);
+        btn.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        btn.setTextColor(Color.parseColor(textHex != null ? textHex : "#FAFAFA"));
+        btn.setStateListAnimator(null);
+        btn.setPadding(dp(12), dp(10), dp(12), dp(10));
+
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.parseColor(fillHex != null ? fillHex : "#18181C"));
+        bg.setCornerRadius(dp(12));
+        bg.setStroke(dp(1), Color.parseColor(strokeHex != null ? strokeHex : "#27272A"));
+        btn.setBackground(bg);
+        return btn;
+    }
+
+    private Button makeModalCloseButton(Dialog dialog) {
+        Button close = makeStyledModalBtn("Fechar", "#18181C", "#27272A", "#A1A1AA");
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42));
+        lp.setMargins(0, dp(14), 0, 0);
+        close.setLayoutParams(lp);
+        close.setOnClickListener(v -> dialog.dismiss());
+        return close;
+    }
+
+    private void showAllToolsDialog() {
+        LinearLayout root = createDarkModalRoot("Todos os Controles", "Selecione uma ferramenta para o PC");
+        Dialog dialog = createDarkModal(root);
+
+        GridLayout grid = new GridLayout(this);
+        grid.setColumnCount(3);
+
+        Object[][] tools = {
+                {"Tela 60Hz", R.drawable.ic_monitor, (Runnable) this::showRemoteDesktopDialog},
+                {"Touchpad", R.drawable.ic_touchpad, (Runnable) this::exibirTouchpadDialog},
+                {"Gamepad", R.drawable.ic_gamepad, (Runnable) this::showGamepadDialog},
+                {"Webcam", R.drawable.ic_video, (Runnable) this::showCameraStudioDialog},
+                {"Microfone", R.drawable.ic_mic, (Runnable) this::showMicDialog},
+                {"Arquivos", R.drawable.ic_folder, (Runnable) () -> attachButton.performClick()},
+                {"Pastas PC", R.drawable.ic_folder_open, (Runnable) () -> explorePcButton.performClick()},
+                {"Foto Ctrl+V", R.drawable.ic_camera_shot, (Runnable) this::tirarFotoParaClipboard},
+                {"Clipboard", R.drawable.ic_clipboard, (Runnable) this::enviarClipboardLocal},
+                {"Macros", R.drawable.ic_macro, (Runnable) this::exibirMacroDeckDialog},
+                {"Energia", R.drawable.ic_power, (Runnable) this::exibirEnergiaHardwareDialog},
+                {"Midia", R.drawable.ic_sliders, (Runnable) this::exibirDialogControleRemoto}
+        };
+
+        for (Object[] item : tools) {
+            String label = (String) item[0];
+            int iconRes = (int) item[1];
+            Runnable action = (Runnable) item[2];
+
+            Button tile = new Button(this);
+            tile.setText(label);
+            tile.setAllCaps(false);
+            tile.setTextSize(11);
+            tile.setTextColor(Color.parseColor("#E4E4E7"));
+            tile.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+            tile.setStateListAnimator(null);
+            tile.setBackgroundResource(R.drawable.bg_tool_tile);
+            tile.setCompoundDrawablesWithIntrinsicBounds(0, iconRes, 0, 0);
+            tile.setCompoundDrawablePadding(dp(6));
+            tile.setPadding(dp(6), dp(12), dp(6), dp(10));
+
+            GridLayout.LayoutParams gp = new GridLayout.LayoutParams();
+            gp.width = 0;
+            gp.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+            gp.setMargins(dp(4), dp(4), dp(4), dp(4));
+            tile.setLayoutParams(gp);
+            tile.setOnClickListener(v -> {
+                dialog.dismiss();
+                action.run();
+            });
+            grid.addView(tile);
+        }
+
+        root.addView(grid);
+        root.addView(makeModalCloseButton(dialog));
+        dialog.show();
+    }
+
+    // ==========================================
+    // 1. MACRO DECK / STREAM DECK
+    // ==========================================
+    private void exibirMacroDeckDialog() {
+        LinearLayout root = createDarkModalRoot("Macro Deck", "Atalhos rapidos para o Windows");
+        Dialog dialog = createDarkModal(root);
+
+        // Botao Modo Panico discreto e claro
+        Button btnPanic = makeStyledModalBtn("Modo Panico (Minimizar e Mutar)", "#241115", "#EF4444", "#FCA5A5");
+        LinearLayout.LayoutParams panicLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        panicLp.setMargins(0, 0, 0, dp(10));
+        btnPanic.setLayoutParams(panicLp);
         btnPanic.setOnClickListener(v -> {
             vibrarFeedback(80);
             client.sendCommand("MACRO", "PANIC");
-            Toast.makeText(this, "Modo Pânico Ativado!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Modo panico ativado.", Toast.LENGTH_SHORT).show();
         });
         root.addView(btnPanic);
 
-        // Grade de Atalhos
         GridLayout grid = new GridLayout(this);
         grid.setColumnCount(2);
-        grid.setPadding(0, 12, 0, 0);
 
-        addGridMacro(grid, "🖥️ Mostrar Desktop", "DESKTOP");
-        addGridMacro(grid, "📋 Gerenciador Tarefas", "TASK_MANAGER");
-        addGridMacro(grid, "❌ Fechar Janela (Alt+F4)", "ALT_F4");
-        addGridMacro(grid, "🔄 Alternar (Alt+Tab)", "ALT_TAB");
-        addGridMacro(grid, "📁 Explorador Windows", "EXPLORER");
-        addGridMacro(grid, "🧮 Calculadora", "CALC");
-        addGridMacro(grid, "📝 Bloco de Notas", "NOTEPAD");
-        addGridMacro(grid, "🎵 Abrir Spotify", "SPOTIFY");
-        addGridMacro(grid, "🌐 Abrir Navegador", "BROWSER");
+        addGridMacro(grid, "Mostrar Desktop", "DESKTOP");
+        addGridMacro(grid, "Gerenciador Tarefas", "TASK_MANAGER");
+        addGridMacro(grid, "Fechar (Alt+F4)", "ALT_F4");
+        addGridMacro(grid, "Alternar (Alt+Tab)", "ALT_TAB");
+        addGridMacro(grid, "Explorador Windows", "EXPLORER");
+        addGridMacro(grid, "Calculadora", "CALC");
+        addGridMacro(grid, "Bloco de Notas", "NOTEPAD");
+        addGridMacro(grid, "Spotify", "SPOTIFY");
+        addGridMacro(grid, "Navegador", "BROWSER");
 
         root.addView(grid);
-        b.setView(root);
-        b.setPositiveButton("Fechar", null);
-        b.show();
+        root.addView(makeModalCloseButton(dialog));
+        dialog.show();
     }
 
     private void addGridMacro(GridLayout grid, String title, String macroCode) {
-        Button btn = createCustomButton(title);
+        Button btn = makeStyledModalBtn(title, "#18181C", "#27272A", "#E4E4E7");
+        btn.setTextSize(12);
         GridLayout.LayoutParams p = new GridLayout.LayoutParams();
         p.width = 0;
         p.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
-        p.setMargins(6, 6, 6, 6);
+        p.setMargins(dp(4), dp(4), dp(4), dp(4));
         btn.setLayoutParams(p);
         btn.setOnClickListener(v -> {
             vibrarFeedback(30);
@@ -410,95 +538,94 @@ public class MainActivity extends Activity {
     }
 
     // ==========================================
-    // 2. ⚡ ENERGIA & STATUS DO HARDWARE DO PC
+    // 2. ENERGIA E MONITOR DE HARDWARE
     // ==========================================
     private void exibirEnergiaHardwareDialog() {
-        AlertDialog.Builder b = new AlertDialog.Builder(this);
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.parseColor("#0F172A"));
-        root.setPadding(20, 20, 20, 20);
+        LinearLayout root = createDarkModalRoot("Energia e Hardware", "Telemetria e controle do sistema");
+        Dialog dialog = createDarkModal(root);
 
-        TextView t = new TextView(this);
-        t.setText("⚡ Energia & Monitor de Hardware");
-        t.setTextColor(Color.WHITE);
-        t.setTextSize(17);
-        t.setTypeface(null, Typeface.BOLD);
-        t.setGravity(Gravity.CENTER);
-        t.setPadding(0, 0, 0, 12);
-        root.addView(t);
-
-        // Painel com CPU, RAM e Disco
         hardwareStatsText = new TextView(this);
-        hardwareStatsText.setText("Lendo status do computador...");
+        hardwareStatsText.setText("Carregando telemetria...");
         hardwareStatsText.setTextColor(Color.parseColor("#38BDF8"));
         hardwareStatsText.setTextSize(13);
-        hardwareStatsText.setBackgroundResource(R.drawable.bg_card);
-        hardwareStatsText.setPadding(16, 14, 16, 14);
+        hardwareStatsText.setTypeface(Typeface.MONOSPACE);
+        hardwareStatsText.setLineSpacing(dp(4), 1.0f);
+        GradientDrawable statsBg = new GradientDrawable();
+        statsBg.setColor(Color.parseColor("#09090B"));
+        statsBg.setCornerRadius(dp(12));
+        statsBg.setStroke(dp(1), Color.parseColor("#27272A"));
+        hardwareStatsText.setBackground(statsBg);
+        hardwareStatsText.setPadding(dp(14), dp(12), dp(14), dp(12));
         root.addView(hardwareStatsText);
 
         client.sendCommand("GET_HARDWARE_STATS", "");
 
-        // Ações de Energia
         TextView lblPower = new TextView(this);
-        lblPower.setText("\nAções de Energia:");
-        lblPower.setTextColor(Color.parseColor("#94A3B8"));
-        lblPower.setTextSize(12);
+        lblPower.setText("CONTROLE DE ENERGIA");
+        lblPower.setTextColor(Color.parseColor("#71717A"));
+        lblPower.setTextSize(10);
+        lblPower.setLetterSpacing(0.08f);
+        lblPower.setPadding(0, dp(14), 0, dp(8));
         root.addView(lblPower);
 
-        Button btnLock = createCustomButton("🔒 Bloquear Tela do Windows");
+        Button btnLock = makeStyledModalBtn("Bloquear Tela do Windows", "#18181C", "#27272A", "#FAFAFA");
+        LinearLayout.LayoutParams lockLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42));
+        lockLp.setMargins(0, 0, 0, dp(8));
+        btnLock.setLayoutParams(lockLp);
         btnLock.setOnClickListener(v -> client.sendCommand("POWER", "LOCK"));
         root.addView(btnLock);
 
-        Button btnSleep = createCustomButton("💤 Suspender Computador");
+        Button btnSleep = makeStyledModalBtn("Suspender Computador", "#18181C", "#27272A", "#FAFAFA");
+        LinearLayout.LayoutParams sleepLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42));
+        sleepLp.setMargins(0, 0, 0, dp(8));
+        btnSleep.setLayoutParams(sleepLp);
         btnSleep.setOnClickListener(v -> client.sendCommand("POWER", "SLEEP"));
         root.addView(btnSleep);
 
         LinearLayout timerRow = new LinearLayout(this);
         timerRow.setOrientation(LinearLayout.HORIZONTAL);
-        timerRow.setPadding(0, 6, 0, 6);
 
-        Button btnTimer30 = createCustomButton("⏱️ Desligar em 30m");
+        Button btnTimer30 = makeStyledModalBtn("Desligar 30m", "#18181C", "#27272A", "#FBBF24");
         btnTimer30.setOnClickListener(v -> {
             client.sendCommand("POWER", "SHUTDOWN_TIMER:1800");
-            Toast.makeText(this, "PC desligará em 30 minutos!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Desligamento agendado para 30 minutos.", Toast.LENGTH_SHORT).show();
         });
 
-        Button btnCancelTimer = createCustomButton("🛑 Cancelar Timer");
+        Button btnCancelTimer = makeStyledModalBtn("Cancelar Timer", "#18181C", "#27272A", "#A1A1AA");
         btnCancelTimer.setOnClickListener(v -> {
             client.sendCommand("POWER", "SHUTDOWN_CANCEL");
-            Toast.makeText(this, "Desligamento cancelado!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Desligamento cancelado.", Toast.LENGTH_SHORT).show();
         });
 
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        lp.setMargins(0, 0, 6, 0);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(42), 1f);
+        lp.setMargins(0, 0, dp(6), 0);
         btnTimer30.setLayoutParams(lp);
-        btnCancelTimer.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        btnCancelTimer.setLayoutParams(new LinearLayout.LayoutParams(0, dp(42), 1f));
         timerRow.addView(btnTimer30);
         timerRow.addView(btnCancelTimer);
         root.addView(timerRow);
 
-        b.setView(root);
-        b.setPositiveButton("Fechar", null);
-        hardwareDialog = b.show();
+        root.addView(makeModalCloseButton(dialog));
+        if (hardwareDialog != null && hardwareDialog.isShowing()) {
+            hardwareDialog.dismiss();
+        }
+        hardwareDialog = dialog;
+        dialog.show();
     }
 
     // ==========================================
-    // ==========================================
-    // 3. 🎮 GAMEPAD / CONTROLE VIRTUAL (MODO HORIZONTAL ERGONÔMICO)
+    // 3. GAMEPAD VIRTUAL (MODO HORIZONTAL MINIMALISTA)
     // ==========================================
     private void showGamepadDialog() {
         Dialog dialog = new Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
 
-        // Bloqueia em modo paisagem (horizontal) para jogabilidade ideal
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
 
-        // Container raiz ocupando tela cheia horizontal
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.parseColor("#090D16"));
-        root.setPadding(dp(16), dp(8), dp(16), dp(8));
+        root.setBackgroundColor(Color.parseColor("#09090B"));
+        root.setPadding(dp(16), dp(10), dp(16), dp(10));
         root.setLayoutParams(new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
@@ -520,22 +647,24 @@ public class MainActivity extends Activity {
         spacerL.setLayoutParams(new LinearLayout.LayoutParams(0, 1, 1f));
         topRow.addView(spacerL);
 
-        // Botões centrais de sistema
         Button btnSelect = makeSystemBtn("SELECT");
         setupGamepadTouch(btnSelect, "SELECT");
         Button btnStart = makeSystemBtn("START");
         setupGamepadTouch(btnStart, "START");
 
         Button btnExit = new Button(this);
-        btnExit.setText("✕ SAIR");
-        btnExit.setTextColor(Color.WHITE);
-        btnExit.setTextSize(11);
-        btnExit.setTypeface(null, Typeface.BOLD);
+        btnExit.setText("Sair");
+        btnExit.setAllCaps(false);
+        btnExit.setTextColor(Color.parseColor("#FCA5A5"));
+        btnExit.setTextSize(12);
+        btnExit.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        btnExit.setStateListAnimator(null);
         GradientDrawable exitBg = new GradientDrawable();
-        exitBg.setColor(Color.parseColor("#EF4444"));
+        exitBg.setColor(Color.parseColor("#1D1114"));
         exitBg.setCornerRadius(dp(10));
+        exitBg.setStroke(dp(1), Color.parseColor("#EF4444"));
         btnExit.setBackground(exitBg);
-        LinearLayout.LayoutParams exitLp = new LinearLayout.LayoutParams(dp(62), dp(36));
+        LinearLayout.LayoutParams exitLp = new LinearLayout.LayoutParams(dp(64), dp(36));
         exitLp.setMargins(dp(6), 0, dp(6), 0);
         btnExit.setLayoutParams(exitLp);
         btnExit.setOnClickListener(v -> dialog.dismiss());
@@ -556,7 +685,7 @@ public class MainActivity extends Activity {
         topRow.addView(btnR2);
         root.addView(topRow);
 
-        // ---- ÁREA DE JOGO PRINCIPAL (D-PAD na esquerda, ABXY na direita) ----
+        // ---- ÁREA PRINCIPAL (D-PAD ESQUERDA, ABXY DIREITA) ----
         LinearLayout mainPlayArea = new LinearLayout(this);
         mainPlayArea.setOrientation(LinearLayout.HORIZONTAL);
         mainPlayArea.setGravity(Gravity.CENTER_VERTICAL);
@@ -565,7 +694,6 @@ public class MainActivity extends Activity {
         mainParams.setMargins(0, dp(6), 0, dp(6));
         mainPlayArea.setLayoutParams(mainParams);
 
-        // ================= D-PAD (ESQUERDA) =================
         LinearLayout dpadWing = new LinearLayout(this);
         dpadWing.setOrientation(LinearLayout.VERTICAL);
         dpadWing.setGravity(Gravity.CENTER);
@@ -584,7 +712,7 @@ public class MainActivity extends Activity {
         View dpadCenter = new View(this);
         dpadCenter.setLayoutParams(new LinearLayout.LayoutParams(dp(48), dp(48)));
         GradientDrawable dpadCenterBg = new GradientDrawable();
-        dpadCenterBg.setColor(Color.parseColor("#1E2536"));
+        dpadCenterBg.setColor(Color.parseColor("#111114"));
         dpadCenterBg.setCornerRadius(dp(8));
         dpadCenter.setBackground(dpadCenterBg);
 
@@ -602,67 +730,60 @@ public class MainActivity extends Activity {
         dpadWing.addView(dpadMidRow);
         dpadWing.addView(dpadDown);
 
-        // Botão L3 (Thumbstick analógico esquerdo)
         Button btnL3 = makeThumbstickBtn("L3");
         setupGamepadTouch(btnL3, "LS");
         dpadWing.addView(btnL3);
 
         mainPlayArea.addView(dpadWing);
 
-        // ================= CENTRO (STATUS) =================
         LinearLayout centerInfo = new LinearLayout(this);
         centerInfo.setOrientation(LinearLayout.VERTICAL);
         centerInfo.setGravity(Gravity.CENTER);
-        centerInfo.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.4f));
+        centerInfo.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.35f));
 
         TextView tvGame = new TextView(this);
-        tvGame.setText("🎮 PCcell\nGAMEPAD");
-        tvGame.setTextColor(Color.parseColor("#475569"));
-        tvGame.setTextSize(12);
-        tvGame.setTypeface(null, Typeface.BOLD);
+        tvGame.setText("PCcell");
+        tvGame.setTextColor(Color.parseColor("#3F3F46"));
+        tvGame.setTextSize(13);
+        tvGame.setLetterSpacing(0.12f);
+        tvGame.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
         tvGame.setGravity(Gravity.CENTER);
         centerInfo.addView(tvGame);
 
         mainPlayArea.addView(centerInfo);
 
-        // ================= BOTÕES DE AÇÃO ABXY (DIREITA) =================
         LinearLayout abxyWing = new LinearLayout(this);
         abxyWing.setOrientation(LinearLayout.VERTICAL);
         abxyWing.setGravity(Gravity.CENTER);
         abxyWing.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
 
-        // Botão Y (Amarelo no topo)
-        Button btnY = makeActionBtn("Y", "#F59E0B", Color.BLACK);
+        Button btnY = makeActionBtn("Y", "#F59E0B");
         setupGamepadTouch(btnY, "Y");
 
         LinearLayout abxyMidRow = new LinearLayout(this);
         abxyMidRow.setOrientation(LinearLayout.HORIZONTAL);
         abxyMidRow.setGravity(Gravity.CENTER);
 
-        // Botão X (Azul na esquerda)
-        Button btnX = makeActionBtn("X", "#0284C7", Color.WHITE);
+        Button btnX = makeActionBtn("X", "#38BDF8");
         setupGamepadTouch(btnX, "X");
 
         View abxySpacer = new View(this);
         abxySpacer.setLayoutParams(new LinearLayout.LayoutParams(dp(28), 1));
 
-        // Botão B (Vermelho na direita)
-        Button btnB = makeActionBtn("B", "#DC2626", Color.WHITE);
+        Button btnB = makeActionBtn("B", "#EF4444");
         setupGamepadTouch(btnB, "B");
 
         abxyMidRow.addView(btnX);
         abxyMidRow.addView(abxySpacer);
         abxyMidRow.addView(btnB);
 
-        // Botão A (Verde embaixo)
-        Button btnA = makeActionBtn("A", "#16A34A", Color.WHITE);
+        Button btnA = makeActionBtn("A", "#10B981");
         setupGamepadTouch(btnA, "A");
 
         abxyWing.addView(btnY);
         abxyWing.addView(abxyMidRow);
         abxyWing.addView(btnA);
 
-        // Botão R3 (Thumbstick analógico direito)
         Button btnR3 = makeThumbstickBtn("R3");
         setupGamepadTouch(btnR3, "RS");
         abxyWing.addView(btnR3);
@@ -684,13 +805,14 @@ public class MainActivity extends Activity {
     private Button makeShoulderBtn(String text) {
         Button b = new Button(this);
         b.setText(text);
-        b.setTextColor(Color.WHITE);
-        b.setTypeface(null, Typeface.BOLD);
+        b.setTextColor(Color.parseColor("#FAFAFA"));
+        b.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
         b.setTextSize(14);
+        b.setStateListAnimator(null);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.parseColor("#1E293B"));
+        bg.setColor(Color.parseColor("#141418"));
         bg.setCornerRadius(dp(12));
-        bg.setStroke(dp(1), Color.parseColor("#475569"));
+        bg.setStroke(dp(1), Color.parseColor("#27272A"));
         b.setBackground(bg);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(78), dp(44));
         lp.setMargins(dp(4), 0, dp(4), 0);
@@ -701,13 +823,14 @@ public class MainActivity extends Activity {
     private Button makeSystemBtn(String text) {
         Button b = new Button(this);
         b.setText(text);
-        b.setTextColor(Color.parseColor("#CBD5E1"));
+        b.setTextColor(Color.parseColor("#A1A1AA"));
         b.setTextSize(10);
-        b.setTypeface(null, Typeface.BOLD);
+        b.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        b.setStateListAnimator(null);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.parseColor("#1E293B"));
+        bg.setColor(Color.parseColor("#141418"));
         bg.setCornerRadius(dp(10));
-        bg.setStroke(dp(1), Color.parseColor("#334155"));
+        bg.setStroke(dp(1), Color.parseColor("#27272A"));
         b.setBackground(bg);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(68), dp(36));
         lp.setMargins(dp(4), 0, dp(4), 0);
@@ -718,29 +841,31 @@ public class MainActivity extends Activity {
     private Button makeDpadBtn(String text, int widthPx, int heightPx) {
         Button b = new Button(this);
         b.setText(text);
-        b.setTextColor(Color.parseColor("#E2E8F0"));
+        b.setTextColor(Color.parseColor("#E4E4E7"));
         b.setTextSize(20);
         b.setPadding(0, 0, 0, 0);
+        b.setStateListAnimator(null);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.parseColor("#1E293B"));
-        bg.setCornerRadius(dp(10));
-        bg.setStroke(dp(1), Color.parseColor("#3B82F6"));
+        bg.setColor(Color.parseColor("#141418"));
+        bg.setCornerRadius(dp(12));
+        bg.setStroke(dp(1), Color.parseColor("#27272A"));
         b.setBackground(bg);
         b.setLayoutParams(new LinearLayout.LayoutParams(widthPx, heightPx));
         return b;
     }
 
-    private Button makeActionBtn(String text, String hexColor, int textColor) {
+    private Button makeActionBtn(String text, String accentHex) {
         Button b = new Button(this);
         b.setText(text);
-        b.setTextColor(textColor);
-        b.setTypeface(null, Typeface.BOLD);
-        b.setTextSize(22);
+        b.setTextColor(Color.parseColor(accentHex));
+        b.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        b.setTextSize(21);
         b.setPadding(0, 0, 0, 0);
+        b.setStateListAnimator(null);
         GradientDrawable bg = new GradientDrawable();
         bg.setShape(GradientDrawable.OVAL);
-        bg.setColor(Color.parseColor(hexColor));
-        bg.setStroke(dp(2), Color.parseColor("#FFFFFF"));
+        bg.setColor(Color.parseColor("#141418"));
+        bg.setStroke(dp(2), Color.parseColor(accentHex));
         b.setBackground(bg);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(68), dp(68));
         lp.setMargins(dp(4), dp(4), dp(4), dp(4));
@@ -751,16 +876,17 @@ public class MainActivity extends Activity {
     private Button makeThumbstickBtn(String text) {
         Button b = new Button(this);
         b.setText(text);
-        b.setTextColor(Color.parseColor("#94A3B8"));
+        b.setTextColor(Color.parseColor("#A1A1AA"));
         b.setTextSize(12);
-        b.setTypeface(null, Typeface.BOLD);
+        b.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
         b.setPadding(0, 0, 0, 0);
+        b.setStateListAnimator(null);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.parseColor("#1E2536"));
-        bg.setCornerRadius(dp(14));
-        bg.setStroke(dp(1), Color.parseColor("#06B6D4"));
+        bg.setColor(Color.parseColor("#141418"));
+        bg.setCornerRadius(dp(18));
+        bg.setStroke(dp(1), Color.parseColor("#27272A"));
         b.setBackground(bg);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(54), dp(38));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(56), dp(38));
         lp.setMargins(0, dp(8), 0, 0);
         b.setLayoutParams(lp);
         return b;
@@ -773,7 +899,7 @@ public class MainActivity extends Activity {
                 vibrarFeedback(30);
                 btn.setScaleX(0.92f);
                 btn.setScaleY(0.92f);
-                btn.setAlpha(0.85f);
+                btn.setAlpha(0.75f);
                 client.sendCommand("GAMEPAD_DOWN", key);
             } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_POINTER_UP || action == MotionEvent.ACTION_CANCEL) {
                 btn.setScaleX(1.0f);
@@ -786,7 +912,7 @@ public class MainActivity extends Activity {
     }
 
     // ==========================================
-    // 4. 📸 FOTO DIRETO NO CTRL+V DO PC
+    // 4. FOTO DIRETO NO CTRL+V DO PC
     // ==========================================
     private void tirarFotoParaClipboard() {
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
@@ -797,36 +923,33 @@ public class MainActivity extends Activity {
         try {
             startActivityForResult(takePictureIntent, TAKE_PHOTO_FOR_CLIPBOARD);
         } catch (Exception e) {
-            Toast.makeText(this, "Não foi possível abrir a câmera: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Nao foi possivel abrir a camera: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
     // ==========================================
-    // 5. 🖥️ REMOTE DESKTOP (60Hz + TOUCHPAD + BOTÕES ESQUERDO/DIREITO)
+    // 5. REMOTE DESKTOP (60Hz + TOUCHPAD + BOTÕES ESQUERDO/DIREITO)
     // ==========================================
     private void showRemoteDesktopDialog() {
         remoteDesktopDialog = new Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
         remoteDesktopDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
 
         FrameLayout frame = new FrameLayout(this);
-        frame.setBackgroundColor(Color.BLACK);
+        frame.setBackgroundColor(Color.parseColor("#09090B"));
         frame.setLayoutParams(new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        // Tela do PC
         remoteDesktopView = new ImageView(this);
         remoteDesktopView.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        remoteDesktopView.setBackgroundColor(Color.BLACK);
+        remoteDesktopView.setBackgroundColor(Color.parseColor("#09090B"));
         remoteDesktopView.setLayoutParams(new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        // Variáveis de toque
         final float[] lastTouchX = {0};
         final float[] lastTouchY = {0};
         final long[] downTime = {0};
         final boolean[] hasMoved = {false};
 
-        // Touchpad na tela do celular
         remoteDesktopView.setOnTouchListener((v, event) -> {
             int viewW = v.getWidth();
             int viewH = v.getHeight();
@@ -859,7 +982,6 @@ public class MainActivity extends Activity {
             return true;
         });
 
-        // Top Bar com status 60Hz e botão Fechar
         LinearLayout topBarRD = new LinearLayout(this);
         topBarRD.setOrientation(LinearLayout.HORIZONTAL);
         topBarRD.setGravity(Gravity.CENTER_VERTICAL);
@@ -869,17 +991,16 @@ public class MainActivity extends Activity {
         topBarLp.setMargins(dp(16), dp(16), dp(16), 0);
         topBarRD.setLayoutParams(topBarLp);
 
-        // Badge 60Hz
         TextView badge60Hz = new TextView(this);
-        badge60Hz.setText("● Ao Vivo • 60Hz");
+        badge60Hz.setText("● 60Hz");
         badge60Hz.setTextColor(Color.parseColor("#10B981"));
-        badge60Hz.setTextSize(12);
-        badge60Hz.setTypeface(null, Typeface.BOLD);
+        badge60Hz.setTextSize(11);
+        badge60Hz.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
         badge60Hz.setPadding(dp(12), dp(6), dp(12), dp(6));
         GradientDrawable badgeBg = new GradientDrawable();
-        badgeBg.setColor(Color.parseColor("#D90F172A"));
-        badgeBg.setCornerRadius(dp(16));
-        badgeBg.setStroke(dp(1), Color.parseColor("#1E293B"));
+        badgeBg.setColor(Color.parseColor("#D9111114"));
+        badgeBg.setCornerRadius(dp(999));
+        badgeBg.setStroke(dp(1), Color.parseColor("#27272A"));
         badge60Hz.setBackground(badgeBg);
         topBarRD.addView(badge60Hz);
 
@@ -888,53 +1009,55 @@ public class MainActivity extends Activity {
         topBarRD.addView(topSpacer);
 
         Button closeBtnRD = new Button(this);
-        closeBtnRD.setText("✕ Fechar");
-        closeBtnRD.setTextColor(Color.WHITE);
+        closeBtnRD.setText("Fechar");
+        closeBtnRD.setAllCaps(false);
+        closeBtnRD.setTextColor(Color.parseColor("#FAFAFA"));
         closeBtnRD.setTextSize(12);
-        closeBtnRD.setTypeface(null, Typeface.BOLD);
+        closeBtnRD.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        closeBtnRD.setStateListAnimator(null);
         GradientDrawable closeBg = new GradientDrawable();
-        closeBg.setColor(Color.parseColor("#D90F172A"));
-        closeBg.setCornerRadius(dp(16));
-        closeBg.setStroke(dp(1), Color.parseColor("#EF4444"));
+        closeBg.setColor(Color.parseColor("#D9111114"));
+        closeBg.setCornerRadius(dp(999));
+        closeBg.setStroke(dp(1), Color.parseColor("#27272A"));
         closeBtnRD.setBackground(closeBg);
-        closeBtnRD.setPadding(dp(14), dp(6), dp(14), dp(6));
+        closeBtnRD.setPadding(dp(16), dp(6), dp(16), dp(6));
         closeBtnRD.setOnClickListener(v -> remoteDesktopDialog.dismiss());
         topBarRD.addView(closeBtnRD);
 
-        // DOCK INFERIOR COM OS BOTÕES DE CLIQUE DO MOUSE
+        // DOCK INFERIOR MINIMALISTA DE CLIQUES
         LinearLayout dockClicks = new LinearLayout(this);
         dockClicks.setOrientation(LinearLayout.HORIZONTAL);
         dockClicks.setGravity(Gravity.CENTER);
         GradientDrawable dockBg = new GradientDrawable();
-        dockBg.setColor(Color.parseColor("#E60F172A"));
-        dockBg.setCornerRadius(dp(26));
-        dockBg.setStroke(dp(1), Color.parseColor("#334155"));
+        dockBg.setColor(Color.parseColor("#E6111114"));
+        dockBg.setCornerRadius(dp(999));
+        dockBg.setStroke(dp(1), Color.parseColor("#27272A"));
         dockClicks.setBackground(dockBg);
-        dockClicks.setPadding(dp(16), dp(8), dp(16), dp(8));
+        dockClicks.setPadding(dp(8), dp(6), dp(8), dp(6));
         FrameLayout.LayoutParams dockLp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         dockLp.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
-        dockLp.setMargins(0, 0, 0, dp(18));
+        dockLp.setMargins(0, 0, 0, dp(20));
         dockClicks.setLayoutParams(dockLp);
 
-        // Botão CLIQUE ESQUERDO
         Button btnClickLeft = new Button(this);
-        btnClickLeft.setText("🖱️ ESQUERDO");
-        btnClickLeft.setTextColor(Color.WHITE);
-        btnClickLeft.setTextSize(13);
-        btnClickLeft.setTypeface(null, Typeface.BOLD);
+        btnClickLeft.setText("Clique Esq.");
+        btnClickLeft.setAllCaps(false);
+        btnClickLeft.setTextColor(Color.parseColor("#FAFAFA"));
+        btnClickLeft.setTextSize(12);
+        btnClickLeft.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        btnClickLeft.setStateListAnimator(null);
         GradientDrawable leftBg = new GradientDrawable();
-        leftBg.setColor(Color.parseColor("#1E293B"));
-        leftBg.setCornerRadius(dp(18));
-        leftBg.setStroke(dp(2), Color.parseColor("#10B981"));
+        leftBg.setColor(Color.parseColor("#18181C"));
+        leftBg.setCornerRadius(dp(999));
+        leftBg.setStroke(dp(1), Color.parseColor("#10B981"));
         btnClickLeft.setBackground(leftBg);
-        LinearLayout.LayoutParams btnLeftLp = new LinearLayout.LayoutParams(dp(140), dp(46));
-        btnClickLeft.setLayoutParams(btnLeftLp);
+        btnClickLeft.setLayoutParams(new LinearLayout.LayoutParams(dp(132), dp(42)));
         btnClickLeft.setOnTouchListener((v, e) -> {
             int action = e.getActionMasked();
             if (action == MotionEvent.ACTION_DOWN) {
                 vibrarFeedback(35);
-                btnClickLeft.setAlpha(0.75f);
+                btnClickLeft.setAlpha(0.7f);
                 int w = remoteDesktopView != null ? remoteDesktopView.getWidth() : 1;
                 int h = remoteDesktopView != null ? remoteDesktopView.getHeight() : 1;
                 client.sendRemoteMouseDown(lastTouchX[0], lastTouchY[0], w, h, "LEFT");
@@ -948,26 +1071,26 @@ public class MainActivity extends Activity {
         });
 
         View dockDivider = new View(this);
-        dockDivider.setLayoutParams(new LinearLayout.LayoutParams(dp(16), 1));
+        dockDivider.setLayoutParams(new LinearLayout.LayoutParams(dp(8), 1));
 
-        // Botão CLIQUE DIREITO
         Button btnClickRight = new Button(this);
-        btnClickRight.setText("🖱️ DIREITO");
-        btnClickRight.setTextColor(Color.WHITE);
-        btnClickRight.setTextSize(13);
-        btnClickRight.setTypeface(null, Typeface.BOLD);
+        btnClickRight.setText("Clique Dir.");
+        btnClickRight.setAllCaps(false);
+        btnClickRight.setTextColor(Color.parseColor("#FAFAFA"));
+        btnClickRight.setTextSize(12);
+        btnClickRight.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        btnClickRight.setStateListAnimator(null);
         GradientDrawable rightBg = new GradientDrawable();
-        rightBg.setColor(Color.parseColor("#1E293B"));
-        rightBg.setCornerRadius(dp(18));
-        rightBg.setStroke(dp(2), Color.parseColor("#F59E0B"));
+        rightBg.setColor(Color.parseColor("#18181C"));
+        rightBg.setCornerRadius(dp(999));
+        rightBg.setStroke(dp(1), Color.parseColor("#F59E0B"));
         btnClickRight.setBackground(rightBg);
-        LinearLayout.LayoutParams btnRightLp = new LinearLayout.LayoutParams(dp(140), dp(46));
-        btnClickRight.setLayoutParams(btnRightLp);
+        btnClickRight.setLayoutParams(new LinearLayout.LayoutParams(dp(132), dp(42)));
         btnClickRight.setOnTouchListener((v, e) -> {
             int action = e.getActionMasked();
             if (action == MotionEvent.ACTION_DOWN) {
                 vibrarFeedback(35);
-                btnClickRight.setAlpha(0.75f);
+                btnClickRight.setAlpha(0.7f);
                 client.sendCommand("MOUSE_CLICK", "RIGHT");
             } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
                 btnClickRight.setAlpha(1.0f);
@@ -993,7 +1116,7 @@ public class MainActivity extends Activity {
         client.sendCommand("STREAM_SCREEN_START", "");
     }
 
-    // 6. 📷 CÂMERA / WEBCAM - Tela Dedicada
+    // 6. CAMERA / WEBCAM - TELA DEDICADA MINIMALISTA
     // ==========================================
     private void showCameraStudioDialog() {
         if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
@@ -1005,84 +1128,86 @@ public class MainActivity extends Activity {
         cameraDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
 
         FrameLayout frame = new FrameLayout(this);
-        frame.setBackgroundColor(Color.BLACK);
+        frame.setBackgroundColor(Color.parseColor("#09090B"));
 
-        // SurfaceView for camera preview
         SurfaceView surfaceView = new SurfaceView(this);
         surfaceView.setLayoutParams(new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         frame.addView(surfaceView);
 
-        // Top overlay bar
+        // Top overlay bar flutuante
         LinearLayout topBar = new LinearLayout(this);
         topBar.setOrientation(LinearLayout.HORIZONTAL);
-        topBar.setBackgroundColor(Color.parseColor("#AA000000"));
-        topBar.setPadding(dp(8), dp(8), dp(8), dp(8));
+        topBar.setPadding(dp(16), dp(16), dp(16), dp(12));
         topBar.setGravity(Gravity.CENTER_VERTICAL);
         FrameLayout.LayoutParams topBarLp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         topBar.setLayoutParams(topBarLp);
 
-        // Close button (top-left)
-        Button btnClose = makeCameraOverlayBtn("✕ Fechar");
-        btnClose.setBackgroundColor(Color.parseColor("#DC2626"));
+        Button btnClose = makeCameraOverlayBtn("Fechar", "#D9111114", "#27272A");
         btnClose.setOnClickListener(v -> cameraDialog.dismiss());
         topBar.addView(btnClose);
 
-        // Spacer
         View topSpacer = new View(this);
         topSpacer.setLayoutParams(new LinearLayout.LayoutParams(0, 1, 1f));
         topBar.addView(topSpacer);
 
-        // Switch camera button (top-right)
-        Button btnSwitch = makeCameraOverlayBtn("🔄 Trocar Câmera");
+        Button btnSwitch = makeCameraOverlayBtn("Alternar camera", "#D9111114", "#27272A");
         topBar.addView(btnSwitch);
 
         frame.addView(topBar);
 
-        // Bottom overlay bar
+        // Bottom dock flutuante
         LinearLayout bottomBar = new LinearLayout(this);
         bottomBar.setOrientation(LinearLayout.HORIZONTAL);
-        bottomBar.setBackgroundColor(Color.parseColor("#AA000000"));
-        bottomBar.setPadding(dp(8), dp(8), dp(8), dp(8));
+        bottomBar.setPadding(dp(10), dp(8), dp(10), dp(8));
         bottomBar.setGravity(Gravity.CENTER);
+        GradientDrawable camDockBg = new GradientDrawable();
+        camDockBg.setColor(Color.parseColor("#E6111114"));
+        camDockBg.setCornerRadius(dp(999));
+        camDockBg.setStroke(dp(1), Color.parseColor("#27272A"));
+        bottomBar.setBackground(camDockBg);
         FrameLayout.LayoutParams bottomBarLp = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        bottomBarLp.gravity = Gravity.BOTTOM;
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        bottomBarLp.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        bottomBarLp.setMargins(0, 0, 0, dp(22));
         bottomBar.setLayoutParams(bottomBarLp);
 
-        // Stream toggle button
         Button[] btnStreamRef = new Button[1];
-        Button btnStream = makeCameraOverlayBtn("📡 Transmitir Webcam");
-        btnStream.setBackgroundColor(Color.parseColor("#546E7A"));
+        Button btnStream = makeCameraOverlayBtn("Transmitir Webcam", "#18181C", "#27272A");
         btnStreamRef[0] = btnStream;
         boolean[] streamingRef = {false};
 
         btnStream.setOnClickListener(v -> {
             streamingRef[0] = !streamingRef[0];
             isStreamingCamera = streamingRef[0];
+            GradientDrawable stBg = new GradientDrawable();
+            stBg.setCornerRadius(dp(999));
             if (streamingRef[0]) {
-                btnStreamRef[0].setBackgroundColor(Color.parseColor("#2E7D32"));
-                btnStreamRef[0].setText("📡 Parar Transmissão");
+                stBg.setColor(Color.parseColor("#0B261C"));
+                stBg.setStroke(dp(1), Color.parseColor("#10B981"));
+                btnStreamRef[0].setTextColor(Color.parseColor("#34D399"));
+                btnStreamRef[0].setText("Transmitindo");
             } else {
-                btnStreamRef[0].setBackgroundColor(Color.parseColor("#546E7A"));
-                btnStreamRef[0].setText("📡 Transmitir Webcam");
+                stBg.setColor(Color.parseColor("#18181C"));
+                stBg.setStroke(dp(1), Color.parseColor("#27272A"));
+                btnStreamRef[0].setTextColor(Color.parseColor("#FAFAFA"));
+                btnStreamRef[0].setText("Transmitir Webcam");
             }
+            btnStreamRef[0].setBackground(stBg);
         });
 
-        // Photo to clipboard button
-        Button btnPhoto = makeCameraOverlayBtn("📸 Foto → Ctrl+V");
+        Button btnPhoto = makeCameraOverlayBtn("Foto -> Ctrl+V", "#2563EB", "#2563EB");
         btnPhoto.setOnClickListener(v -> captureAndSendCameraFrame());
 
         bottomBar.addView(btnStream);
         View bottomSpacer = new View(this);
-        bottomSpacer.setLayoutParams(new LinearLayout.LayoutParams(dp(12), 1));
+        bottomSpacer.setLayoutParams(new LinearLayout.LayoutParams(dp(8), 1));
         bottomBar.addView(bottomSpacer);
         bottomBar.addView(btnPhoto);
 
         frame.addView(bottomBar);
 
-        // Camera setup via SurfaceHolder
         SurfaceHolder holder = surfaceView.getHolder();
         holder.addCallback(new SurfaceHolder.Callback() {
             @Override
@@ -1134,7 +1259,7 @@ public class MainActivity extends Activity {
             });
             camera.startPreview();
         } catch (Exception e) {
-            Toast.makeText(MainActivity.this, "Erro ao iniciar câmera: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(MainActivity.this, "Erro ao iniciar camera: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -1143,21 +1268,25 @@ public class MainActivity extends Activity {
         camera.takePicture(null, null, (data, cam) -> {
             if (data != null) {
                 client.sendClipboardImage(data);
-                runOnUiThread(() -> Toast.makeText(this, "📸 Foto enviada para o Ctrl+V do PC!", Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> Toast.makeText(this, "Foto enviada para o Ctrl+V do PC.", Toast.LENGTH_SHORT).show());
             }
             cam.startPreview();
         });
     }
 
-    private Button makeCameraOverlayBtn(String text) {
+    private Button makeCameraOverlayBtn(String text, String fillHex, String strokeHex) {
         Button b = new Button(this);
         b.setText(text);
-        b.setTextColor(Color.WHITE);
+        b.setAllCaps(false);
+        b.setTextColor(Color.parseColor("#FAFAFA"));
         b.setTextSize(12);
-        b.setPadding(dp(10), dp(6), dp(10), dp(6));
+        b.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        b.setStateListAnimator(null);
+        b.setPadding(dp(16), dp(8), dp(16), dp(8));
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.parseColor("#AA37474F"));
-        bg.setCornerRadius(dp(8));
+        bg.setColor(Color.parseColor(fillHex));
+        bg.setCornerRadius(dp(999));
+        bg.setStroke(dp(1), Color.parseColor(strokeHex));
         b.setBackground(bg);
         return b;
     }
@@ -1175,7 +1304,7 @@ public class MainActivity extends Activity {
     }
 
     // ==========================================
-    // 7. 🎙️ MICROFONE SEM FIO - Interface Moderna
+    // 7. MICROFONE SEM FIO - INTERFACE MINIMALISTA
     // ==========================================
     private void showMicDialog() {
         if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -1183,74 +1312,52 @@ public class MainActivity extends Activity {
             return;
         }
 
-        micDialog = new Dialog(this);
-        micDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout root = createDarkModalRoot("Microfone Sem Fio", "Transmissao de audio PCM em tempo real");
         root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setPadding(dp(24), dp(32), dp(24), dp(32));
+        micDialog = createDarkModal(root);
 
-        GradientDrawable rootBg = new GradientDrawable();
-        rootBg.setColor(Color.parseColor("#1A1A2E"));
-        rootBg.setCornerRadius(dp(24));
-        root.setBackground(rootBg);
+        // Anel minimalista com icone vetorial de microfone
+        FrameLayout micRing = new FrameLayout(this);
+        micRing.setBackgroundResource(R.drawable.bg_mic_ring);
+        LinearLayout.LayoutParams ringParams = new LinearLayout.LayoutParams(dp(96), dp(96));
+        ringParams.setMargins(0, dp(10), 0, dp(16));
+        ringParams.gravity = Gravity.CENTER_HORIZONTAL;
+        micRing.setLayoutParams(ringParams);
 
-        // Title
-        TextView titleTv = new TextView(this);
-        titleTv.setText("🎙️ Microfone Sem Fio");
-        titleTv.setTextColor(Color.WHITE);
-        titleTv.setTextSize(18);
-        titleTv.setTypeface(null, Typeface.BOLD);
-        titleTv.setGravity(Gravity.CENTER);
-        root.addView(titleTv);
+        micIcon = new ImageView(this);
+        micIcon.setImageResource(R.drawable.ic_mic_large);
+        FrameLayout.LayoutParams iconLp = new FrameLayout.LayoutParams(dp(44), dp(44));
+        iconLp.gravity = Gravity.CENTER;
+        micIcon.setLayoutParams(iconLp);
+        micRing.addView(micIcon);
+        root.addView(micRing);
 
-        // Microphone icon (pulsing when recording)
-        micIcon = new TextView(this);
-        micIcon.setText("🎤");
-        micIcon.setTextSize(60);
-        micIcon.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(100));
-        iconParams.setMargins(0, dp(16), 0, dp(8));
-        micIcon.setLayoutParams(iconParams);
-        root.addView(micIcon);
-
-        // Audio level progress bar
+        // Indicador de nivel de audio
         micLevelBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         micLevelBar.setMax(100);
         micLevelBar.setProgress(0);
+        micLevelBar.setProgressTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#10B981")));
+        micLevelBar.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#27272A")));
         LinearLayout.LayoutParams barParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(16));
-        barParams.setMargins(0, dp(8), 0, dp(16));
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(6));
+        barParams.setMargins(0, dp(4), 0, dp(14));
         micLevelBar.setLayoutParams(barParams);
         root.addView(micLevelBar);
 
-        // Status text
         micStatusText = new TextView(this);
-        micStatusText.setText("Aguardando...");
-        micStatusText.setTextColor(Color.parseColor("#94A3B8"));
-        micStatusText.setTextSize(14);
+        micStatusText.setText("Pronto para transmitir");
+        micStatusText.setTextColor(Color.parseColor("#A1A1AA"));
+        micStatusText.setTextSize(13);
         micStatusText.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        statusParams.setMargins(0, 0, 0, dp(20));
+        statusParams.setMargins(0, 0, 0, dp(18));
         micStatusText.setLayoutParams(statusParams);
         root.addView(micStatusText);
 
-        // Toggle button
-        micToggleButton = new Button(this);
-        micToggleButton.setText("⏺ INICIAR GRAVAÇÃO");
-        micToggleButton.setTextColor(Color.WHITE);
-        micToggleButton.setTypeface(null, Typeface.BOLD);
-        micToggleButton.setTextSize(15);
-        GradientDrawable micBtnBg = new GradientDrawable();
-        micBtnBg.setColor(Color.parseColor("#2E7D32"));
-        micBtnBg.setCornerRadius(dp(12));
-        micToggleButton.setBackground(micBtnBg);
+        micToggleButton = makeStyledModalBtn("Iniciar gravacao", "#0B261C", "#10B981", "#34D399");
         LinearLayout.LayoutParams micBtnParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
-        micBtnParams.setMargins(0, 0, 0, dp(12));
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
         micToggleButton.setLayoutParams(micBtnParams);
 
         micToggleButton.setOnClickListener(v -> {
@@ -1261,27 +1368,13 @@ public class MainActivity extends Activity {
             }
         });
         root.addView(micToggleButton);
-
-        // Close button
-        Button closeBtn = new Button(this);
-        closeBtn.setText("Fechar");
-        closeBtn.setTextColor(Color.parseColor("#94A3B8"));
-        closeBtn.setTextSize(13);
-        GradientDrawable closeBg = new GradientDrawable();
-        closeBg.setColor(Color.parseColor("#263238"));
-        closeBg.setCornerRadius(dp(8));
-        closeBtn.setBackground(closeBg);
-        closeBtn.setOnClickListener(v -> micDialog.dismiss());
-        root.addView(closeBtn);
+        root.addView(makeModalCloseButton(micDialog));
 
         micDialog.setOnDismissListener(d -> {
             if (isRecordingMic) stopMicRecording();
             stopMicPulse();
         });
 
-        micDialog.setContentView(root);
-
-        // Update button state if already recording
         if (isRecordingMic) updateMicDialogRecordingState(true);
 
         micDialog.show();
@@ -1308,7 +1401,6 @@ public class MainActivity extends Activity {
                         System.arraycopy(buffer, 0, chunk, 0, read);
                         client.sendMicAudio(chunk);
 
-                        // Calculate audio level
                         int max = 0;
                         for (int i = 0; i < read - 1; i += 2) {
                             int sample = Math.abs((buffer[i + 1] << 8) | (buffer[i] & 0xFF));
@@ -1329,33 +1421,43 @@ public class MainActivity extends Activity {
         isRecordingMic = false;
         pararMicrofone();
         updateMicDialogRecordingState(false);
-        micButton.setText("🎙️ Mic Sem Fio");
-        micButton.setTextColor(Color.parseColor("#E2E8F0"));
+        micButton.setText("Microfone");
+        micButton.setTextColor(Color.parseColor("#E4E4E7"));
     }
 
     private void updateMicDialogRecordingState(boolean recording) {
         if (recording) {
-            micButton.setText("🔴 Gravando Mic...");
+            micButton.setText("Gravando");
             micButton.setTextColor(Color.parseColor("#EF4444"));
 
             if (micToggleButton != null) {
-                micToggleButton.setText("⏹ PARAR");
+                micToggleButton.setText("Parar gravacao");
+                micToggleButton.setTextColor(Color.parseColor("#FCA5A5"));
                 GradientDrawable bg = new GradientDrawable();
-                bg.setColor(Color.parseColor("#C62828"));
+                bg.setColor(Color.parseColor("#241115"));
                 bg.setCornerRadius(dp(12));
+                bg.setStroke(dp(1), Color.parseColor("#EF4444"));
                 micToggleButton.setBackground(bg);
             }
-            if (micStatusText != null) micStatusText.setText("Gravando e transmitindo...");
+            if (micStatusText != null) {
+                micStatusText.setText("Transmitindo audio para o PC...");
+                micStatusText.setTextColor(Color.parseColor("#34D399"));
+            }
             startMicPulse();
         } else {
             if (micToggleButton != null) {
-                micToggleButton.setText("⏺ INICIAR GRAVAÇÃO");
+                micToggleButton.setText("Iniciar gravacao");
+                micToggleButton.setTextColor(Color.parseColor("#34D399"));
                 GradientDrawable bg = new GradientDrawable();
-                bg.setColor(Color.parseColor("#2E7D32"));
+                bg.setColor(Color.parseColor("#0B261C"));
                 bg.setCornerRadius(dp(12));
+                bg.setStroke(dp(1), Color.parseColor("#10B981"));
                 micToggleButton.setBackground(bg);
             }
-            if (micStatusText != null) micStatusText.setText("Parado");
+            if (micStatusText != null) {
+                micStatusText.setText("Pronto para transmitir");
+                micStatusText.setTextColor(Color.parseColor("#A1A1AA"));
+            }
             if (micLevelBar != null) micLevelBar.setProgress(0);
             stopMicPulse();
         }
@@ -1364,18 +1466,17 @@ public class MainActivity extends Activity {
     private void startMicPulse() {
         if (micIcon == null) return;
         stopMicPulse();
-        ObjectAnimator scaleX = ObjectAnimator.ofFloat(micIcon, "scaleX", 1f, 1.2f, 1f);
-        ObjectAnimator scaleY = ObjectAnimator.ofFloat(micIcon, "scaleY", 1f, 1.2f, 1f);
+        ObjectAnimator scaleX = ObjectAnimator.ofFloat(micIcon, "scaleX", 1f, 1.15f, 1f);
+        ObjectAnimator scaleY = ObjectAnimator.ofFloat(micIcon, "scaleY", 1f, 1.15f, 1f);
         micPulseAnimator = new AnimatorSet();
         micPulseAnimator.playTogether(scaleX, scaleY);
         micPulseAnimator.setDuration(600);
-        // Use simple handler loop to repeat pulse
         Handler pulseHandler = new Handler(Looper.getMainLooper());
         Runnable pulseRunnable = new Runnable() {
             @Override
             public void run() {
                 if (isRecordingMic && micIcon != null) {
-                    micIcon.animate().scaleX(1.25f).scaleY(1.25f).setDuration(300)
+                    micIcon.animate().scaleX(1.18f).scaleY(1.18f).setDuration(300)
                             .withEndAction(() -> micIcon.animate().scaleX(1f).scaleY(1f).setDuration(300).start())
                             .start();
                     pulseHandler.postDelayed(this, 700);
@@ -1412,50 +1513,39 @@ public class MainActivity extends Activity {
     }
 
     private void alternarMicrofoneSemFio() {
-        // kept for backward compat; now delegates to showMicDialog
         showMicDialog();
     }
 
     private void abrirWebcamStream() {
-        // kept for backward compat; delegates to new method
         showCameraStudioDialog();
     }
 
     // ==========================================
-    // RECURSOS EXISTENTES: TOUCHPAD, EXPLORADOR
+    // TOUCHPAD E EXPLORADOR REMOTO
     // ==========================================
     private void exibirTouchpadDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.parseColor("#0F172A"));
-        root.setPadding(20, 20, 20, 20);
+        LinearLayout root = createDarkModalRoot("Touchpad", "Arraste para mover • Toque para clicar • 2 dedos para rolar");
+        Dialog dialog = createDarkModal(root);
 
-        TextView title = new TextView(this);
-        title.setText("🖱️ Touchpad / Mouse Sem Fio");
-        title.setTextColor(Color.WHITE);
-        title.setTextSize(16);
-        title.setTypeface(null, Typeface.BOLD);
-        title.setGravity(Gravity.CENTER);
-        root.addView(title);
+        FrameLayout touchpadBox = new FrameLayout(this);
+        touchpadBox.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(220)));
+        touchpadBox.setBackgroundResource(R.drawable.bg_feed_container);
 
-        TextView hint = new TextView(this);
-        hint.setText("Arraste para mover • Toque = Clique • 2 dedos = Scroll");
-        hint.setTextColor(Color.parseColor("#94A3B8"));
-        hint.setTextSize(12);
-        hint.setGravity(Gravity.CENTER);
-        hint.setPadding(0, 4, 0, 12);
-        root.addView(hint);
-
-        View touchpadArea = new View(this);
-        touchpadArea.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 550));
-        touchpadArea.setBackgroundResource(R.drawable.bg_card);
+        TextView padHint = new TextView(this);
+        padHint.setText("AREA DE TOQUE");
+        padHint.setTextColor(Color.parseColor("#3F3F46"));
+        padHint.setTextSize(11);
+        padHint.setLetterSpacing(0.12f);
+        FrameLayout.LayoutParams hintLp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        hintLp.gravity = Gravity.CENTER;
+        padHint.setLayoutParams(hintLp);
+        touchpadBox.addView(padHint);
 
         final float[] lastPos = new float[2];
         final long[] downTime = new long[1];
         final boolean[] moved = new boolean[1];
 
-        touchpadArea.setOnTouchListener((v, event) -> {
+        touchpadBox.setOnTouchListener((v, event) -> {
             int pointerCount = event.getPointerCount();
             int action = event.getActionMasked();
 
@@ -1498,28 +1588,30 @@ public class MainActivity extends Activity {
             }
             return true;
         });
-        root.addView(touchpadArea);
+        root.addView(touchpadBox);
 
         LinearLayout clickRow = new LinearLayout(this);
         clickRow.setOrientation(LinearLayout.HORIZONTAL);
-        clickRow.setPadding(0, 12, 0, 8);
+        LinearLayout.LayoutParams crLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        crLp.setMargins(0, dp(10), 0, dp(8));
+        clickRow.setLayoutParams(crLp);
 
-        Button btnLeft = createCustomButton("Clique Esq.");
+        Button btnLeft = makeStyledModalBtn("Clique Esq.", "#18181C", "#27272A", "#FAFAFA");
         btnLeft.setOnClickListener(v -> {
             vibrarFeedback(30);
             client.sendCommand("MOUSE_CLICK", "LEFT");
         });
 
-        Button btnRight = createCustomButton("Clique Dir.");
+        Button btnRight = makeStyledModalBtn("Clique Dir.", "#18181C", "#27272A", "#FAFAFA");
         btnRight.setOnClickListener(v -> {
             vibrarFeedback(30);
             client.sendCommand("MOUSE_CLICK", "RIGHT");
         });
 
-        LinearLayout.LayoutParams p1 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
-        p1.setMargins(0, 0, 6, 0);
+        LinearLayout.LayoutParams p1 = new LinearLayout.LayoutParams(0, dp(42), 1.0f);
+        p1.setMargins(0, 0, dp(6), 0);
         btnLeft.setLayoutParams(p1);
-        btnRight.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+        btnRight.setLayoutParams(new LinearLayout.LayoutParams(0, dp(42), 1.0f));
 
         clickRow.addView(btnLeft);
         clickRow.addView(btnRight);
@@ -1528,91 +1620,104 @@ public class MainActivity extends Activity {
         LinearLayout extraRow = new LinearLayout(this);
         extraRow.setOrientation(LinearLayout.HORIZONTAL);
 
-        Button btnPrevSlide = createCustomButton("⏪ Slide Ant.");
+        Button btnPrevSlide = makeStyledModalBtn("Anterior", "#141418", "#27272A", "#A1A1AA");
+        btnPrevSlide.setTextSize(12);
         btnPrevSlide.setOnClickListener(v -> client.sendCommand("KEY_PRESS", "PAGE_UP"));
 
-        Button btnNextSlide = createCustomButton("⏩ Próx. Slide");
+        Button btnNextSlide = makeStyledModalBtn("Proximo", "#141418", "#27272A", "#A1A1AA");
+        btnNextSlide.setTextSize(12);
         btnNextSlide.setOnClickListener(v -> client.sendCommand("KEY_PRESS", "PAGE_DOWN"));
 
-        Button btnKeyboard = createCustomButton("⌨️ Digitar...");
+        Button btnKeyboard = makeStyledModalBtn("Digitar", "#141418", "#27272A", "#60A5FA");
+        btnKeyboard.setTextSize(12);
         btnKeyboard.setOnClickListener(v -> exibirDialogDigitarTexto());
 
-        LinearLayout.LayoutParams p2 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
-        p2.setMargins(0, 0, 4, 0);
+        LinearLayout.LayoutParams p2 = new LinearLayout.LayoutParams(0, dp(40), 1.0f);
+        p2.setMargins(0, 0, dp(6), 0);
         btnPrevSlide.setLayoutParams(p2);
         btnNextSlide.setLayoutParams(p2);
-        btnKeyboard.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+        btnKeyboard.setLayoutParams(new LinearLayout.LayoutParams(0, dp(40), 1.0f));
 
         extraRow.addView(btnPrevSlide);
         extraRow.addView(btnNextSlide);
         extraRow.addView(btnKeyboard);
         root.addView(extraRow);
 
-        builder.setView(root);
-        builder.setPositiveButton("Fechar", null);
-        builder.show();
+        root.addView(makeModalCloseButton(dialog));
+        dialog.show();
     }
 
     private void exibirDialogDigitarTexto() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("⌨️ Digitar Texto no PC");
+        LinearLayout root = createDarkModalRoot("Digitar no PC", "O texto sera digitado na janela ativa");
+        Dialog dialog = createDarkModal(root);
+
         EditText input = new EditText(this);
-        input.setHint("Digite o texto para enviar ao PC...");
-        builder.setView(input);
-        builder.setPositiveButton("Enviar", (dialog, which) -> {
+        input.setHint("Digite o texto...");
+        input.setHintTextColor(Color.parseColor("#52525B"));
+        input.setTextColor(Color.parseColor("#FAFAFA"));
+        input.setTextSize(14);
+        input.setBackgroundResource(R.drawable.bg_input);
+        input.setPadding(dp(14), dp(12), dp(14), dp(12));
+        root.addView(input);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        rlp.setMargins(0, dp(14), 0, 0);
+        row.setLayoutParams(rlp);
+
+        Button cancel = makeStyledModalBtn("Cancelar", "#18181C", "#27272A", "#A1A1AA");
+        cancel.setOnClickListener(v -> dialog.dismiss());
+        Button send = makeStyledModalBtn("Enviar", "#2563EB", "#2563EB", "#FFFFFF");
+        send.setOnClickListener(v -> {
             String text = input.getText().toString();
             if (!text.isEmpty()) {
                 client.sendCommand("KEY_TYPE", text);
-                Toast.makeText(this, "Digitado no PC!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Texto digitado no PC.", Toast.LENGTH_SHORT).show();
             }
+            dialog.dismiss();
         });
-        builder.setNegativeButton("Cancelar", null);
-        builder.show();
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(42), 1f);
+        lp.setMargins(0, 0, dp(8), 0);
+        cancel.setLayoutParams(lp);
+        send.setLayoutParams(new LinearLayout.LayoutParams(0, dp(42), 1f));
+        row.addView(cancel);
+        row.addView(send);
+        root.addView(row);
+
+        dialog.show();
     }
 
     private void exibirDialogExplorador(String path, List<RemoteDirItem> items) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setBackgroundColor(Color.parseColor("#0F172A"));
-        layout.setPadding(16, 16, 16, 16);
-
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(0, 0, 0, 10);
-
-        TextView pathLbl = new TextView(this);
-        pathLbl.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
-        pathLbl.setText("📂 " + (path.equals("ROOT") ? "PC (Início)" : path));
-        pathLbl.setTextColor(Color.WHITE);
-        pathLbl.setTextSize(13);
-        pathLbl.setTypeface(null, Typeface.BOLD);
-        header.addView(pathLbl);
+        String displayPath = path.equals("ROOT") ? "Unidades do Computador" : path;
+        LinearLayout root = createDarkModalRoot("Pastas do PC", displayPath);
+        Dialog dialog = createDarkModal(root);
 
         if (!"ROOT".equals(path)) {
-            Button btnUp = new Button(this);
-            btnUp.setText("⬆️ Voltar");
-            btnUp.setTextSize(11);
-            btnUp.setBackgroundResource(R.drawable.bg_button_secondary);
-            btnUp.setTextColor(Color.parseColor("#93C5FD"));
+            Button btnUp = makeStyledModalBtn("Voltar pasta anterior", "#18181C", "#27272A", "#93C5FD");
+            btnUp.setTextSize(12);
+            LinearLayout.LayoutParams ulp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(38));
+            ulp.setMargins(0, 0, 0, dp(10));
+            btnUp.setLayoutParams(ulp);
             btnUp.setOnClickListener(v -> {
                 File cur = new File(path);
                 File parent = cur.getParentFile();
                 client.sendCommand("BROWSE_DIR", parent != null ? parent.getAbsolutePath() : "ROOT");
-                if (exploreDialog != null) exploreDialog.dismiss();
+                dialog.dismiss();
             });
-            header.addView(btnUp);
+            root.addView(btnUp);
         }
-        layout.addView(header);
 
         ListView listView = new ListView(this);
-        listView.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 700));
+        listView.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(320)));
+        listView.setDivider(new android.graphics.drawable.ColorDrawable(Color.parseColor("#1F1F23")));
+        listView.setDividerHeight(1);
 
         List<String> labels = new ArrayList<>();
         for (RemoteDirItem it : items) {
-            String prefix = it.isDir ? "📁 " : "📄 ";
-            String suffix = it.isDir ? "" : " (" + formatFileSize(it.size) + ")";
+            String prefix = it.isDir ? "[Pasta]  " : "";
+            String suffix = it.isDir ? "" : "  (" + formatFileSize(it.size) + ")";
             labels.add(prefix + it.name + suffix);
         }
 
@@ -1620,9 +1725,10 @@ public class MainActivity extends Activity {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
                 TextView tv = (TextView) super.getView(position, convertView, parent);
-                tv.setTextColor(Color.parseColor("#F1F5F9"));
-                tv.setTextSize(14);
-                tv.setPadding(12, 16, 12, 16);
+                RemoteDirItem item = items.get(position);
+                tv.setTextColor(item.isDir ? Color.parseColor("#93C5FD") : Color.parseColor("#FAFAFA"));
+                tv.setTextSize(13);
+                tv.setPadding(dp(8), dp(12), dp(8), dp(12));
                 return tv;
             }
         };
@@ -1632,29 +1738,39 @@ public class MainActivity extends Activity {
             RemoteDirItem selected = items.get(position);
             if (selected.isDir) {
                 client.sendCommand("BROWSE_DIR", selected.fullPath);
-                if (exploreDialog != null) exploreDialog.dismiss();
+                dialog.dismiss();
             } else {
-                new AlertDialog.Builder(MainActivity.this)
-                        .setTitle("Baixar Arquivo do PC")
-                        .setMessage("Deseja baixar \"" + selected.name + "\" para o celular?")
-                        .setPositiveButton("Baixar Agora", (d, w) -> {
-                            client.sendCommand("REQUEST_FILE", selected.fullPath);
-                            Toast.makeText(MainActivity.this, "Baixando " + selected.name + "...", Toast.LENGTH_SHORT).show();
-                        })
-                        .setNegativeButton("Cancelar", null)
-                        .show();
+                LinearLayout confirmRoot = createDarkModalRoot("Baixar arquivo", selected.name + " (" + formatFileSize(selected.size) + ")");
+                Dialog confirmDlg = createDarkModal(confirmRoot);
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                Button cBtn = makeStyledModalBtn("Cancelar", "#18181C", "#27272A", "#A1A1AA");
+                cBtn.setOnClickListener(v -> confirmDlg.dismiss());
+                Button dBtn = makeStyledModalBtn("Baixar", "#2563EB", "#2563EB", "#FFFFFF");
+                dBtn.setOnClickListener(v -> {
+                    client.sendCommand("REQUEST_FILE", selected.fullPath);
+                    Toast.makeText(MainActivity.this, "Baixando " + selected.name + "...", Toast.LENGTH_SHORT).show();
+                    confirmDlg.dismiss();
+                });
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(42), 1f);
+                lp.setMargins(0, 0, dp(8), 0);
+                cBtn.setLayoutParams(lp);
+                dBtn.setLayoutParams(new LinearLayout.LayoutParams(0, dp(42), 1f));
+                row.addView(cBtn);
+                row.addView(dBtn);
+                confirmRoot.addView(row);
+                confirmDlg.show();
             }
         });
 
-        layout.addView(listView);
-        builder.setView(layout);
-        builder.setPositiveButton("Fechar", null);
+        root.addView(listView);
+        root.addView(makeModalCloseButton(dialog));
 
         if (exploreDialog != null && exploreDialog.isShowing()) {
             exploreDialog.dismiss();
         }
-        exploreDialog = builder.create();
-        exploreDialog.show();
+        exploreDialog = dialog;
+        dialog.show();
     }
 
     @Override
@@ -1682,24 +1798,24 @@ public class MainActivity extends Activity {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setBackgroundResource(isSent ? R.drawable.bg_bubble_sent : R.drawable.bg_card);
-        card.setPadding(22, 16, 22, 16);
+        card.setPadding(dp(14), dp(12), dp(14), dp(12));
 
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
         if (isSent) {
-            cardParams.setMargins(90, 0, 0, 0);
+            cardParams.setMargins(dp(44), 0, 0, 0);
         } else {
-            cardParams.setMargins(0, 0, 90, 0);
+            cardParams.setMargins(0, 0, dp(44), 0);
         }
         card.setLayoutParams(cardParams);
 
         TextView header = new TextView(this);
-        header.setText((isSent ? "📤 Enviado: " : "📥 Recebido: ") + sender + " • " + getCurrentTime());
-        header.setTextColor(isSent ? Color.parseColor("#BFDBFE") : Color.parseColor("#94A3B8"));
-        header.setTextSize(11);
-        header.setTypeface(null, Typeface.BOLD);
+        header.setText((isSent ? "Enviado" : "Recebido") + " • " + sender + " • " + getCurrentTime());
+        header.setTextColor(isSent ? Color.parseColor("#BFDBFE") : Color.parseColor("#A1A1AA"));
+        header.setTextSize(10);
+        header.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
         card.addView(header);
 
         if (isImageFile(fileName) && fileUri != null) {
@@ -1712,52 +1828,56 @@ public class MainActivity extends Activity {
                     ImageView iv = new ImageView(this);
                     iv.setImageBitmap(bmp);
                     iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                    LinearLayout.LayoutParams ivParams = new LinearLayout.LayoutParams(260, 200);
-                    ivParams.setMargins(0, 8, 0, 8);
+                    LinearLayout.LayoutParams ivParams = new LinearLayout.LayoutParams(dp(190), dp(140));
+                    ivParams.setMargins(0, dp(8), 0, dp(6));
                     iv.setLayoutParams(ivParams);
                     card.addView(iv);
                 }
             } catch (Exception ignored) {}
         }
 
-        String icon = getFileIcon(fileName);
+        String tag = getFileTag(fileName);
         TextView fileInfo = new TextView(this);
-        fileInfo.setText(icon + " " + fileName + "\n(" + formatFileSize(size) + ")");
-        fileInfo.setTextColor(Color.WHITE);
-        fileInfo.setTextSize(14);
-        fileInfo.setTypeface(null, Typeface.BOLD);
-        fileInfo.setPadding(0, 6, 0, 6);
+        fileInfo.setText((tag.isEmpty() ? "" : "[" + tag + "] ") + fileName + "\n" + formatFileSize(size));
+        fileInfo.setTextColor(Color.parseColor("#FAFAFA"));
+        fileInfo.setTextSize(13);
+        fileInfo.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        fileInfo.setPadding(0, dp(6), 0, dp(4));
         card.addView(fileInfo);
 
         if (fileUri != null) {
             TextView pathHint = new TextView(this);
-            pathHint.setText("✓ Salvo em Downloads/TransferApp");
-            pathHint.setTextColor(Color.parseColor("#10B981"));
+            pathHint.setText("Salvo em Downloads/TransferApp");
+            pathHint.setTextColor(Color.parseColor("#34D399"));
             pathHint.setTextSize(11);
             card.addView(pathHint);
 
             LinearLayout actions = new LinearLayout(this);
             actions.setOrientation(LinearLayout.HORIZONTAL);
-            actions.setPadding(0, 10, 0, 0);
+            actions.setPadding(0, dp(10), 0, 0);
 
             Button btnOpen = new Button(this);
             btnOpen.setText("Abrir");
+            btnOpen.setAllCaps(false);
             btnOpen.setTextSize(12);
+            btnOpen.setStateListAnimator(null);
             btnOpen.setBackgroundResource(R.drawable.bg_button_action);
             btnOpen.setTextColor(Color.WHITE);
             btnOpen.setOnClickListener(v -> abrirArquivo(fileUri, fileName));
 
             Button btnShare = new Button(this);
             btnShare.setText("Compartilhar");
+            btnShare.setAllCaps(false);
             btnShare.setTextSize(12);
+            btnShare.setStateListAnimator(null);
             btnShare.setBackgroundResource(R.drawable.bg_button_secondary);
             btnShare.setTextColor(Color.parseColor("#93C5FD"));
             btnShare.setOnClickListener(v -> compartilharArquivo(fileUri, fileName));
 
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-            lp.setMargins(0, 0, 8, 0);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(36), 1.0f);
+            lp.setMargins(0, 0, dp(8), 0);
             btnOpen.setLayoutParams(lp);
-            btnShare.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+            btnShare.setLayoutParams(new LinearLayout.LayoutParams(0, dp(36), 1.0f));
 
             actions.addView(btnOpen);
             actions.addView(btnShare);
@@ -1775,13 +1895,7 @@ public class MainActivity extends Activity {
     }
 
     private Button createCustomButton(String text) {
-        Button b = new Button(this);
-        b.setText(text);
-        b.setTextSize(12);
-        b.setTextColor(Color.parseColor("#E2E8F0"));
-        b.setBackgroundResource(R.drawable.bg_button_secondary);
-        b.setPadding(8, 8, 8, 8);
-        return b;
+        return makeStyledModalBtn(text, "#18181C", "#27272A", "#E4E4E7");
     }
 
     private void conectarAoIp(String host) {
@@ -1795,7 +1909,7 @@ public class MainActivity extends Activity {
 
     private void iniciarDescobertaPc() {
         discoverButton.setEnabled(false);
-        discoverButton.setText("🔍 Buscando PC na rede Wi-Fi...");
+        discoverButton.setText("Buscando na rede...");
         discoveredBanner.setVisibility(View.GONE);
 
         DiscoveryClient.discover(this, new DiscoveryClient.DiscoveryListener() {
@@ -1803,7 +1917,7 @@ public class MainActivity extends Activity {
             public void onServerFound(String serverName, String host, int port) {
                 runOnUiThread(() -> {
                     discoveredIp = host;
-                    discoveredText.setText("🖥️ " + serverName + "\nIP: " + host + ":" + port);
+                    discoveredText.setText(serverName + " (" + host + ":" + port + ")");
                     discoveredBanner.setVisibility(View.VISIBLE);
                 });
             }
@@ -1812,7 +1926,7 @@ public class MainActivity extends Activity {
             public void onDiscoveryFinished() {
                 runOnUiThread(() -> {
                     discoverButton.setEnabled(true);
-                    discoverButton.setText("🔍 Buscar PC Automaticamente na Rede");
+                    discoverButton.setText("Buscar PC na rede");
                 });
             }
         });
@@ -1823,7 +1937,7 @@ public class MainActivity extends Activity {
         if (texto.isEmpty()) return;
 
         client.sendText(texto);
-        addTextMessage("Você (Celular)", texto, true);
+        addTextMessage("Você", texto, true);
         messageEditText.setText("");
     }
 
@@ -1833,12 +1947,12 @@ public class MainActivity extends Activity {
             CharSequence text = clipboard.getPrimaryClip().getItemAt(0).getText();
             if (text != null && text.length() > 0) {
                 client.sendClipboard(text.toString());
-                addClipboardCard("Você (Celular)", text.toString());
-                Toast.makeText(this, "Clipboard enviado ao PC!", Toast.LENGTH_SHORT).show();
+                addClipboardCard("Você", text.toString());
+                Toast.makeText(this, "Clipboard enviado ao PC.", Toast.LENGTH_SHORT).show();
                 return;
             }
         }
-        Toast.makeText(this, "Área de transferência está vazia.", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Area de transferencia vazia.", Toast.LENGTH_SHORT).show();
     }
 
     private void copyToClipboard(String text) {
@@ -1850,43 +1964,56 @@ public class MainActivity extends Activity {
     }
 
     private void exibirDialogControleRemoto() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("🎮 Controle Remoto de Mídia");
-
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(30, 20, 30, 20);
+        LinearLayout root = createDarkModalRoot("Midia e Navegador", "Controle de reproducao e abertura de links");
+        Dialog dialog = createDarkModal(root);
 
         LinearLayout mediaRow = new LinearLayout(this);
         mediaRow.setOrientation(LinearLayout.HORIZONTAL);
-        mediaRow.setGravity(Gravity.CENTER);
 
-        Button btnPlay = createCustomButton("⏯️ Play");
-        Button btnVolDown = createCustomButton("🔉 Vol -");
-        Button btnVolUp = createCustomButton("🔊 Vol +");
-        Button btnMute = createCustomButton("🔇 Mudo");
+        Button btnPlay = makeStyledModalBtn("Play", "#18181C", "#27272A", "#FAFAFA");
+        Button btnVolDown = makeStyledModalBtn("Vol -", "#18181C", "#27272A", "#FAFAFA");
+        Button btnVolUp = makeStyledModalBtn("Vol +", "#18181C", "#27272A", "#FAFAFA");
+        Button btnMute = makeStyledModalBtn("Mudo", "#18181C", "#27272A", "#FCA5A5");
 
         btnPlay.setOnClickListener(v -> client.sendCommand("PLAY_PAUSE", ""));
         btnVolDown.setOnClickListener(v -> client.sendCommand("VOL_DOWN", ""));
         btnVolUp.setOnClickListener(v -> client.sendCommand("VOL_UP", ""));
         btnMute.setOnClickListener(v -> client.sendCommand("MUTE", ""));
 
-        mediaRow.addView(btnPlay);
-        mediaRow.addView(btnVolDown);
-        mediaRow.addView(btnVolUp);
-        mediaRow.addView(btnMute);
-        layout.addView(mediaRow);
+        Button[] mediaBtns = {btnPlay, btnVolDown, btnVolUp, btnMute};
+        for (int i = 0; i < mediaBtns.length; i++) {
+            LinearLayout.LayoutParams mp = new LinearLayout.LayoutParams(0, dp(42), 1f);
+            if (i < mediaBtns.length - 1) mp.setMargins(0, 0, dp(6), 0);
+            mediaBtns[i].setLayoutParams(mp);
+            mediaBtns[i].setTextSize(12);
+            mediaRow.addView(mediaBtns[i]);
+        }
+        root.addView(mediaRow);
 
         TextView lblUrl = new TextView(this);
-        lblUrl.setText("\nAbrir Link no Navegador do PC:");
-        lblUrl.setTextSize(13);
-        layout.addView(lblUrl);
+        lblUrl.setText("ABRIR LINK NO PC");
+        lblUrl.setTextColor(Color.parseColor("#71717A"));
+        lblUrl.setTextSize(10);
+        lblUrl.setLetterSpacing(0.08f);
+        lblUrl.setPadding(0, dp(16), 0, dp(8));
+        root.addView(lblUrl);
 
         EditText urlInput = new EditText(this);
         urlInput.setHint("https://youtube.com");
-        layout.addView(urlInput);
+        urlInput.setHintTextColor(Color.parseColor("#52525B"));
+        urlInput.setTextColor(Color.parseColor("#FAFAFA"));
+        urlInput.setTextSize(13);
+        urlInput.setSingleLine(true);
+        urlInput.setBackgroundResource(R.drawable.bg_input);
+        urlInput.setPadding(dp(14), dp(10), dp(14), dp(10));
+        LinearLayout.LayoutParams ulp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        ulp.setMargins(0, 0, 0, dp(10));
+        urlInput.setLayoutParams(ulp);
+        root.addView(urlInput);
 
-        Button btnOpenUrl = createCustomButton("🌐 Abrir no PC");
+        Button btnOpenUrl = makeStyledModalBtn("Abrir no navegador", "#2563EB", "#2563EB", "#FFFFFF");
+        LinearLayout.LayoutParams obLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        btnOpenUrl.setLayoutParams(obLp);
         btnOpenUrl.setOnClickListener(v -> {
             String url = urlInput.getText().toString().trim();
             if (!url.isEmpty()) {
@@ -1894,14 +2021,13 @@ public class MainActivity extends Activity {
                     url = "https://" + url;
                 }
                 client.sendCommand("OPEN_URL", url);
-                Toast.makeText(this, "Enviando URL ao PC...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Abrindo link no PC...", Toast.LENGTH_SHORT).show();
             }
         });
-        layout.addView(btnOpenUrl);
+        root.addView(btnOpenUrl);
+        root.addView(makeModalCloseButton(dialog));
 
-        builder.setView(layout);
-        builder.setPositiveButton("Fechar", null);
-        builder.show();
+        dialog.show();
     }
 
     @Override
@@ -1919,7 +2045,6 @@ public class MainActivity extends Activity {
                 enviarUri(data.getData());
             }
         } else if (requestCode == TAKE_PHOTO_FOR_CLIPBOARD) {
-            // Foto tirada para enviar direto para a Área de Transferência (Ctrl+V) do PC!
             try {
                 File photoFile = new File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "clipboard_temp.jpg");
                 if (photoFile.exists()) {
@@ -1931,7 +2056,7 @@ public class MainActivity extends Activity {
                     fis.close();
                     client.sendClipboardImage(baos.toByteArray());
                     vibrarFeedback(60);
-                    Toast.makeText(this, "📸 Foto enviada! Já está no Ctrl+V do seu PC.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, "Foto enviada para o Ctrl+V do PC.", Toast.LENGTH_LONG).show();
                 }
             } catch (Exception e) {
                 Toast.makeText(this, "Erro ao enviar foto: " + e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -1961,7 +2086,7 @@ public class MainActivity extends Activity {
 
         try {
             InputStream in = getContentResolver().openInputStream(uri);
-            if (in == null) throw new IOException("Arquivo indisponível.");
+            if (in == null) throw new IOException("Arquivo indisponivel.");
             client.sendFile(name, size, in);
         } catch (IOException e) {
             Toast.makeText(this, "Erro ao abrir arquivo: " + e.getMessage(), Toast.LENGTH_LONG).show();
@@ -1978,7 +2103,7 @@ public class MainActivity extends Activity {
                 String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
                 if (sharedText != null) {
                     messageEditText.setText(sharedText);
-                    Toast.makeText(this, "Texto pronto para envio!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Texto pronto para envio.", Toast.LENGTH_SHORT).show();
                 }
             } else {
                 Uri fileUri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
@@ -2010,10 +2135,10 @@ public class MainActivity extends Activity {
             values.put(MediaStore.Downloads.DISPLAY_NAME, name);
             values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/TransferApp");
             Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
-            if (uri == null) throw new IOException("Não foi possível criar entrada em Downloads.");
+            if (uri == null) throw new IOException("Nao foi possivel criar entrada em Downloads.");
             lastSavedUri = uri;
             OutputStream out = getContentResolver().openOutputStream(uri);
-            if (out == null) throw new IOException("Não foi possível gravar no arquivo.");
+            if (out == null) throw new IOException("Nao foi possivel gravar no arquivo.");
             return out;
         }
 
@@ -2021,7 +2146,7 @@ public class MainActivity extends Activity {
         if (!folder.exists() && !folder.mkdirs()) {
             folder = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "TransferApp");
             if (!folder.exists() && !folder.mkdirs()) {
-                throw new IOException("Não foi possível criar a pasta de destino.");
+                throw new IOException("Nao foi possivel criar a pasta de destino.");
             }
         }
         File target = new File(folder, name);
@@ -2039,43 +2164,50 @@ public class MainActivity extends Activity {
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
         row.setGravity(isSent ? Gravity.END : Gravity.START);
-        row.setPadding(0, 4, 0, 4);
+        row.setPadding(0, dp(4), 0, dp(4));
 
         LinearLayout bubble = new LinearLayout(this);
         bubble.setOrientation(LinearLayout.VERTICAL);
         bubble.setBackgroundResource(isSent ? R.drawable.bg_bubble_sent : R.drawable.bg_bubble_received);
-        bubble.setPadding(26, 14, 26, 14);
+        bubble.setPadding(dp(14), dp(10), dp(14), dp(10));
 
         LinearLayout.LayoutParams bubbleParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
         if (isSent) {
-            bubbleParams.setMargins(110, 0, 0, 0);
+            bubbleParams.setMargins(dp(56), 0, 0, 0);
         } else {
-            bubbleParams.setMargins(0, 0, 110, 0);
+            bubbleParams.setMargins(0, 0, dp(56), 0);
         }
         bubble.setLayoutParams(bubbleParams);
 
         TextView senderView = new TextView(this);
         senderView.setText(sender + " • " + getCurrentTime());
-        senderView.setTextColor(isSent ? Color.parseColor("#BFDBFE") : Color.parseColor("#94A3B8"));
-        senderView.setTextSize(11);
+        senderView.setTextColor(isSent ? Color.parseColor("#BFDBFE") : Color.parseColor("#A1A1AA"));
+        senderView.setTextSize(10);
         bubble.addView(senderView);
 
         TextView contentView = new TextView(this);
         contentView.setText(text);
-        contentView.setTextColor(Color.WHITE);
-        contentView.setTextSize(15);
+        contentView.setTextColor(Color.parseColor("#FAFAFA"));
+        contentView.setTextSize(14);
+        contentView.setPadding(0, dp(2), 0, 0);
         contentView.setTextIsSelectable(true);
         bubble.addView(contentView);
 
         if (text.startsWith("http://") || text.startsWith("https://")) {
             Button linkBtn = new Button(this);
-            linkBtn.setText("🌐 Abrir Link");
+            linkBtn.setText("Abrir link");
+            linkBtn.setAllCaps(false);
             linkBtn.setTextSize(11);
+            linkBtn.setStateListAnimator(null);
             linkBtn.setBackgroundResource(R.drawable.bg_button_secondary);
             linkBtn.setTextColor(Color.parseColor("#93C5FD"));
+            LinearLayout.LayoutParams lbp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32));
+            lbp.setMargins(0, dp(6), 0, 0);
+            linkBtn.setLayoutParams(lbp);
+            linkBtn.setPadding(dp(12), 0, dp(12), 0);
             linkBtn.setOnClickListener(v -> {
                 try {
                     startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(text)));
@@ -2100,43 +2232,47 @@ public class MainActivity extends Activity {
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
         row.setGravity(isSent ? Gravity.END : Gravity.START);
-        row.setPadding(0, 4, 0, 4);
+        row.setPadding(0, dp(4), 0, dp(4));
 
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setBackgroundResource(isSent ? R.drawable.bg_bubble_sent : R.drawable.bg_card);
-        card.setPadding(20, 14, 20, 14);
+        card.setPadding(dp(14), dp(10), dp(14), dp(10));
 
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        if (isSent) cardParams.setMargins(90, 0, 0, 0);
-        else cardParams.setMargins(0, 0, 90, 0);
+        if (isSent) cardParams.setMargins(dp(44), 0, 0, 0);
+        else cardParams.setMargins(0, 0, dp(44), 0);
         card.setLayoutParams(cardParams);
 
         TextView header = new TextView(this);
-        header.setText("📋 Área de Transferência • " + sender);
+        header.setText("Clipboard • " + sender + " • " + getCurrentTime());
         header.setTextColor(isSent ? Color.parseColor("#BFDBFE") : Color.parseColor("#93C5FD"));
-        header.setTextSize(11);
+        header.setTextSize(10);
         card.addView(header);
 
         String preview = text.length() > 100 ? text.substring(0, 100) + "..." : text;
         TextView content = new TextView(this);
         content.setText(preview);
-        content.setTextColor(Color.WHITE);
+        content.setTextColor(Color.parseColor("#FAFAFA"));
         content.setTextSize(13);
-        content.setPadding(0, 4, 0, 4);
+        content.setPadding(0, dp(4), 0, dp(6));
         card.addView(content);
 
         Button copyBtn = new Button(this);
-        copyBtn.setText("Copiar novamente");
+        copyBtn.setText("Copiar");
+        copyBtn.setAllCaps(false);
         copyBtn.setTextSize(11);
+        copyBtn.setStateListAnimator(null);
         copyBtn.setBackgroundResource(R.drawable.bg_button_secondary);
         copyBtn.setTextColor(Color.parseColor("#93C5FD"));
+        copyBtn.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32)));
+        copyBtn.setPadding(dp(12), 0, dp(12), 0);
         copyBtn.setOnClickListener(v -> {
             copyToClipboard(text);
-            Toast.makeText(this, "Copiado!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Copiado.", Toast.LENGTH_SHORT).show();
         });
         card.addView(copyBtn);
 
@@ -2180,15 +2316,15 @@ public class MainActivity extends Activity {
         return "*/*";
     }
 
-    private String getFileIcon(String name) {
+    private String getFileTag(String name) {
         String lower = name.toLowerCase();
-        if (lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".webp") || lower.endsWith(".gif")) return "🖼️";
-        if (lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".avi") || lower.endsWith(".mov")) return "🎬";
-        if (lower.endsWith(".mp3") || lower.endsWith(".wav") || lower.endsWith(".aac") || lower.endsWith(".flac")) return "🎵";
-        if (lower.endsWith(".pdf") || lower.endsWith(".doc") || lower.endsWith(".docx") || lower.endsWith(".txt")) return "📄";
-        if (lower.endsWith(".zip") || lower.endsWith(".rar") || lower.endsWith(".7z") || lower.endsWith(".tar")) return "📦";
-        if (lower.endsWith(".apk")) return "📱";
-        return "📁";
+        if (lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".webp") || lower.endsWith(".gif")) return "IMG";
+        if (lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".avi") || lower.endsWith(".mov")) return "VID";
+        if (lower.endsWith(".mp3") || lower.endsWith(".wav") || lower.endsWith(".aac") || lower.endsWith(".flac")) return "AUD";
+        if (lower.endsWith(".pdf") || lower.endsWith(".doc") || lower.endsWith(".docx") || lower.endsWith(".txt")) return "DOC";
+        if (lower.endsWith(".zip") || lower.endsWith(".rar") || lower.endsWith(".7z") || lower.endsWith(".tar")) return "ZIP";
+        if (lower.endsWith(".apk")) return "APK";
+        return "ARQ";
     }
 
     private static String formatFileSize(long bytes) {
